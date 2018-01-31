@@ -7,7 +7,7 @@ Tento modul automaticky synchronizuje vaše kontakty do vybraného seznamu u Eco
 
 Aktualní verzi modulu můžete stáhnout zde:
 
-https://github.com/Ecomailcz/Prestashop-1.6/archive/1.0.zip
+https://github.com/Ecomailcz/Prestashop-1.6/releases/download/1.1/monster_ecomail.zip
 
 Nápovědu k použití modulu naleznete zde:
 
