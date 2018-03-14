@@ -11,7 +11,7 @@ class monster_ecomail extends Module
     {
         $this->name = 'monster_ecomail';
         $this->tab = 'emailing';
-        $this->version = '1.3.7';
+        $this->version = '1.7.1';
         $this->author = 'MONSTER MEDIA, s.r.o.';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = array('min' => '1.5.1', 'max' => '1.7.0');
@@ -31,7 +31,8 @@ class monster_ecomail extends Module
             $this->setValues() &&
             $this->setTab() &&
             $this->setDatabase() &&
-            $this->setHooks();
+            $this->setHooks() &&
+            unlink(_PS_CACHE_DIR_.'/class_index.php');
     }
 
     public function uninstall()
@@ -80,7 +81,8 @@ class monster_ecomail extends Module
             $this->registerHook( 'actionCustomerAccountAdd' ) &&
             $this->registerHook( 'actionValidateOrder' ) &&
             $this->registerHook( 'displayFooter' ) &&
-            $this->registerHook( 'actionCustomerNewsletterSubscribed' );
+            $this->registerHook( 'actionCustomerNewsletterSubscribed' ) &&
+            $this->registerHook( 'actionCartSave');
     }
 
     public function getContent()
@@ -107,6 +109,10 @@ class monster_ecomail extends Module
 
         if(Configuration::get( 'MONSTER_ECOMAIL_API_KEY' ) && $this->getAPI()->getListsCollection()){
             $output .= $this->displayConfirmation($this->l('Spojení se službou Ecomail je aktivní.'));
+        }
+
+        if(_PS_VERSION_ < 1.6){
+            $output .= $this->displayError("Návod k aktivaci odesílání subscribů z modulu 'Blok Odběr novinek [Newsletter block]' do systému Ecomail pro vaší verzi PrestaShopu najdete <a terget='_blank' href='/modules/monster_ecomail/readme_1.5.html'>zde</a>.");
         }
 
         return $output.$this->displayForm();
@@ -159,7 +165,8 @@ class monster_ecomail extends Module
                     )
                 ),
                 array(
-                    'type' => 'switch',
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
                     'label' => $this->l('Aktualizovat údaje na základě dat z objednávek'),
                     'name' => 'load_order_data',
                     'values' => array(
@@ -176,7 +183,8 @@ class monster_ecomail extends Module
                     ),
                 ),
                 array(
-                    'type' => 'switch',
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
                     'label' => $this->l('Odesílat jména zákazníků'),
                     'name' => 'load_name',
                     'values' => array(
@@ -193,7 +201,8 @@ class monster_ecomail extends Module
                     ),
                 ),
                 array(
-                    'type' => 'switch',
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
                     'label' => $this->l('Odesílat adresy zákazníků'),
                     'name' => 'load_address',
                     'values' => array(
@@ -210,7 +219,8 @@ class monster_ecomail extends Module
                     ),
                 ),
                 array(
-                    'type' => 'switch',
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
                     'label' => $this->l('Odesílat data narození zákazníků'),
                     'name' => 'load_birthday',
                     'values' => array(
@@ -382,10 +392,12 @@ class monster_ecomail extends Module
 
     //subscribe zákazníka v modulu blocknewsletter
     public function hookActionCustomerNewsletterSubscribed( $params ) {
+
         if( Configuration::get('MONSTER_ECOMAIL_API_KEY') ) {
 
             $customer = Customer::getCustomersByEmail( $params['email'] );
 
+            //uživatel existuje v eshopu
             if($customer){
 
                 $customer = end($customer); //po registraci už není možné vytvářet další účty, takže bude mít nejvíc dat
@@ -423,6 +435,13 @@ class monster_ecomail extends Module
                         array_merge(array('email' => $customer['email']),$nameData,$birthdayData,$addressData)
 
                 );
+            }else{//uživatel neexistuje v eshopu - je to visitor
+                $this->getAPI()
+                    ->subscribeToList(
+                        Configuration::get('MONSTER_ECOMAIL_LIST_ID'),
+                        array('email' => $params['email'])
+                    );
+
             }
         }
     }
@@ -434,43 +453,46 @@ class monster_ecomail extends Module
         if(Configuration::get('MONSTER_ECOMAIL_LOAD_ORDER_DATA')){
             $customer = new Customer($params['order']->id_customer);
 
-            $nameData = array();
-            $birthdayData = array();
-            $addressData = array();
+            //pokud zákazník nesouhlasil s newsletterem, neřešíme ho ani zde
+            if($customer->newsletter){
+                $nameData = array();
+                $birthdayData = array();
+                $addressData = array();
 
-            if(Configuration::get('MONSTER_ECOMAIL_LOAD_NAME')){
-                $nameData = array(
-                    'name'  => $customer->firstname,
-                    'surname' => $customer->lastname
+                if(Configuration::get('MONSTER_ECOMAIL_LOAD_NAME')){
+                    $nameData = array(
+                        'name'  => $customer->firstname,
+                        'surname' => $customer->lastname
 
-                );
+                    );
+                }
+
+                if(Configuration::get('MONSTER_ECOMAIL_LOAD_BIRTHDAY')){
+                    $birthdayData = array(
+                        'birthday' => $customer->birthday
+
+                    );
+                }
+
+                if(Configuration::get('MONSTER_ECOMAIL_LOAD_ADDRESS')){
+                    $address = new Address($params['order']->id_address_invoice);
+                    $country = new Country($address->id_country);
+
+                    $addressData = array(
+                        "city" => $address->city,
+                        "street" => $address->address1,
+                        "zip" => $address->postcode,
+                        "country" => $country->iso_code,
+                        "company" => $address->company
+                    );
+                }
+
+                $this->getAPI()
+                    ->subscribeToList(
+                        Configuration::get('MONSTER_ECOMAIL_LIST_ID'),
+                        array_merge(array('email' => $customer->email),$nameData,$birthdayData,$addressData)
+                    );
             }
-
-            if(Configuration::get('MONSTER_ECOMAIL_LOAD_BIRTHDAY')){
-                $birthdayData = array(
-                    'birthday' => $customer->birthday
-
-                );
-            }
-
-            if(Configuration::get('MONSTER_ECOMAIL_LOAD_ADDRESS')){
-                $address = new Address($params['order']->id_address_invoice);
-                $country = new Country($address->id_country);
-
-                $addressData = array(
-                    "city" => $address->city,
-                    "street" => $address->address1,
-                    "zip" => $address->postcode,
-                    "country" => $country->iso_code,
-                    "company" => $address->company
-                );
-            }
-
-            $this->getAPI()
-                ->subscribeToList(
-                    Configuration::get('MONSTER_ECOMAIL_LIST_ID'),
-                    array_merge(array('email' => $customer->email),$nameData,$birthdayData,$addressData)
-                );
         }
 
         //přenos transakce pro tarif Marketer+
@@ -478,7 +500,29 @@ class monster_ecomail extends Module
             ->createTransaction( $params['order'] );
     }
 
-    public function hookDisplayFooter() {
+    public function hookActionCartSave($params)
+    {
+        if (!isset($this->context->cart))
+            return;
+
+        $cart_products = $this->context->cart->getProducts();
+
+        $products = array();
+        foreach($cart_products as $p){
+            $products[] = array(
+                "productId" => $p["id_product"],
+                "img_url" => $this->context->link->getImageLink($p['link_rewrite'], $p["id_image"]),
+                "url" => $this->context->link->getProductLink((int)$p["id_product"], $p['link_rewrite'], new Category($p["id_category_default"])),
+                "name" => $p["name"],
+                "price" => $p["price_wt"],
+                "description" => $p["description_short"]
+            );
+        }
+
+        $params['cookie']->monster_ecomail_cart = json_encode($products);
+    }
+
+    public function hookDisplayFooter($params) {
 
         $output = '
 <!-- Ecomail starts growing -->
@@ -492,6 +536,27 @@ appId: \''.Configuration::get('MONSTER_ECOMAIL_APP_ID').'\'
 });
 window.ecotrack(\'setUserIdFromLocation\', \'ecmid\');
 window.ecotrack(\'trackPageView\');
+';
+
+        if(isset($params['cookie']->email)){
+            $output .= 'window.ecotrack(\'setUserId\', \''.$params['cookie']->email.'\');
+            ';
+        }
+
+        if(isset($params['cookie']->monster_ecomail_cart)){
+            $output .= "window.ecotrack('trackUnstructEvent', {
+            schema: '',
+                data: {
+                action: 'Basket',
+                products: ".$params['cookie']->monster_ecomail_cart."
+                }
+            })
+        ";
+
+            $params['cookie']->__unset('monster_ecomail_cart');
+
+        }
+        $output .= '
 </script>
 <!-- Ecomail stops growing -->';
 

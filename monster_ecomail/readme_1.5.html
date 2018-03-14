@@ -1,0 +1,74 @@
+<!DOCTYPE HTML>
+<html lang="cs-cz">
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400&amp;subset=latin-ext" rel="stylesheet">
+    <style>
+        body{
+            background: #555;
+            font-family: 'Ubuntu', sans-serif;
+            font-weight: 300;
+            color: #eee;
+        }
+
+        h1{
+            font-size: 32px;
+            margin: 20px 0 20px;
+        }
+        li{
+            margin-bottom: 20px;
+        }
+        pre{
+            background: #fff;
+        }
+        img{
+            width: 120px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+<h1>Odesílání subscribů z modulu <br/>"Blok Odběr novinek [Newsletter block]" do systému Ecomail</h1>
+
+
+<p>PrestaShop s verzí nižší, než 1.6.0.11 neumí úpravu modulu jiným modulem.
+Proto je potřeba tuto drobnou změnu provézt ručně. Postup je následující:</p>
+
+<ol>
+    <li>V souboru "modules/blocknewsletter/blocknewsletter.php"</li>
+    <li>Najděte řádek s funkcí "register".<br/>
+        Pravděpodobně bude vypadat takto: "protected function register($email, $register_status)"</li>
+    <li>Přepište funkci touto verzí:</li>
+</ol>
+
+<pre><code>
+    protected function register($email, $register_status)
+    {
+        Hook::exec(
+        'actionCustomerNewsletterSubscribed',
+        array( 'email' => $email )
+        );
+
+        if ($register_status == self::GUEST_NOT_REGISTERED)
+        return $this->registerGuest($email);
+
+        if ($register_status == self::CUSTOMER_NOT_REGISTERED)
+        return $this->registerUser($email);
+
+        return false;
+    }
+    </code>
+</pre>
+<div class="text-right">
+    <a href="http://prestashopisti.cz">
+        <img src="mm_logo.png" alt="MM logo"/>
+    </a>
+</div>
+</div>
+</body>
+</html>
+
+
+
