@@ -27,7 +27,8 @@ class EcomailAPI {
             array(
                 'subscriber_data' => $customerData,
                 'resubscribe' => true,
-                'update_existing' => true
+                'update_existing' => true,
+                'skip_confirmation' => Configuration::get('MONSTER_ECOMAIL_SKIP_CONFIRMATION')?true:false
             )
         );
 
