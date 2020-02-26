@@ -11,7 +11,7 @@ class monster_ecomail extends Module
     {
         $this->name = 'monster_ecomail';
         $this->tab = 'emailing';
-        $this->version = '1.9.1';
+        $this->version = '1.9.5';
         $this->author = 'MONSTER MEDIA, s.r.o.';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = array('min' => '1.5.1', 'max' => '1.7.999');
@@ -45,7 +45,7 @@ class monster_ecomail extends Module
 
     //hodnoty v configu
     public function setValues(){
-        return Configuration::updateValue('MONSTER_ECOMAIL_SKIP_CONFIRMATION', 1);
+        return Configuration::updateValue('MONSTER_ECOMAIL_SKIP_CONFIRM', 1);
     }
 
     public function unsetValues(){
@@ -100,7 +100,8 @@ class monster_ecomail extends Module
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_NAME', Tools::getValue('load_name'));
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_ADDRESS', Tools::getValue('load_address'));
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_BIRTHDAY', Tools::getValue('load_birthday'));
-            Configuration::updateValue('MONSTER_ECOMAIL_SKIP_CONFIRMATION', Tools::getValue('skip_confirmation'));
+            Configuration::updateValue('MONSTER_ECOMAIL_LOAD_CART', Tools::getValue('load_cart'));
+            Configuration::updateValue('MONSTER_ECOMAIL_SKIP_CONFIRM', Tools::getValue('skip_confirmation'));
 
         }
 
@@ -241,6 +242,28 @@ class monster_ecomail extends Module
                 array(
                     'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
                     'class' => 't',
+                    'label' => $this->l('Odesílat produkty v košíku'),
+                    'name' => 'load_cart',
+                    'desc'     => $this->l(
+                        'V případě, že vaši zákazníci objednávají desítky druhů produktů v jedné objednávce, 
+                        doporučujeme tuto funkci deaktivovat nebo řádně otestovat, že nedochází ke zpomalení vašeho košíku.'
+                    ),
+                    'values' => array(
+                        array(
+                            'id' => 'active_on',
+                            'value' => 1,
+                            'label' => $this->l('Yes')
+                        ),
+                        array(
+                            'id' => 'active_off',
+                            'value' => 0,
+                            'label' => $this->l('No')
+                        )
+                    ),
+                ),
+                array(
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
                     'label' => $this->l('Přeskočit double opt-in'),
                     'name' => 'skip_confirmation',
                     'values' => array(
@@ -345,7 +368,8 @@ class monster_ecomail extends Module
         $helper->fields_value['load_name'] = Configuration::get('MONSTER_ECOMAIL_LOAD_NAME');
         $helper->fields_value['load_address'] = Configuration::get('MONSTER_ECOMAIL_LOAD_ADDRESS');
         $helper->fields_value['load_birthday'] = Configuration::get('MONSTER_ECOMAIL_LOAD_BIRTHDAY');
-        $helper->fields_value['skip_confirmation'] = Configuration::get('MONSTER_ECOMAIL_SKIP_CONFIRMATION');
+        $helper->fields_value['load_cart'] = Configuration::get('MONSTER_ECOMAIL_LOAD_CART');
+        $helper->fields_value['skip_confirmation'] = Configuration::get('MONSTER_ECOMAIL_SKIP_CONFIRM');
 
         return $helper->generateForm($fields_form);
     }
@@ -561,49 +585,50 @@ class monster_ecomail extends Module
 
     public function hookActionCartSave($params)
     {
-        //products in cart temporarily disabled - waiting for API
-        return;
+        if(Configuration::get('MONSTER_ECOMAIL_LOAD_CART')){
+            if (!isset($this->context->cart))
+                return;
 
-        if (!isset($this->context->cart))
+            $cart_products = $this->context->cart->getProducts();
+
+            $products = array();
+            foreach($cart_products as $p){
+                $products[] = array(
+                    "productId" => $p["id_product"],
+                    "img_url" => $this->context->link->getImageLink($p['link_rewrite'], $p["id_image"]),
+                    "url" => $this->context->link->getProductLink((int)$p["id_product"], $p['link_rewrite'], new Category($p["id_category_default"])),
+                    "name" => $p["name"],
+                    "price" => $p["price_wt"],
+                    "description" => $p["description_short"]
+                );
+            }
+
+            $this->context->cookie->monster_ecomail_cart = json_encode($products);
+        }else{
             return;
-
-        $cart_products = $this->context->cart->getProducts();
-
-        $products = array();
-        foreach($cart_products as $p){
-            $products[] = array(
-                "productId" => $p["id_product"],
-                "img_url" => $this->context->link->getImageLink($p['link_rewrite'], $p["id_image"]),
-                "url" => $this->context->link->getProductLink((int)$p["id_product"], $p['link_rewrite'], new Category($p["id_category_default"])),
-                "name" => $p["name"],
-                "price" => $p["price_wt"],
-                "description" => $p["description_short"]
-            );
         }
-
-        $this->context->cookie->monster_ecomail_cart = json_encode($products);
     }
 
     public function hookDisplayFooter($params) {
 
         $output = '
-<!-- Ecomail starts growing -->
+        <!-- Ecomail starts -->
 <script type="text/javascript">
 ;(function(p,l,o,w,i,n,g){if(!p[i]){p.GlobalSnowplowNamespace=p.GlobalSnowplowNamespace||[];
-p.GlobalSnowplowNamespace.push(i);p[i]=function(){(p[i].q=p[i].q||[]).push(arguments)
+            p.GlobalSnowplowNamespace.push(i);p[i]=function(){(p[i].q=p[i].q||[]).push(arguments)
 };p[i].q=p[i].q||[];n=l.createElement(o);g=l.getElementsByTagName(o)[0];n.async=1;
-n.src=w;g.parentNode.insertBefore(n,g)}}(window,document,"script","//d3hgrlqjaqd5ry.cloudfront.net/sp/2.4.2/sp.js","ecotrack"));
+n.src=w;g.parentNode.insertBefore(n,g)}}(window,document,"script","//d70shl7vidtft.cloudfront.net/ecmtr-2.4.2.js","ecotrack"));
 window.ecotrack(\'newTracker\', \'cf\', \'d2dpiwfhf3tz0r.cloudfront.net\', { // Initialise a tracker
-appId: \''.Configuration::get('MONSTER_ECOMAIL_APP_ID').'\'
+  appId:  \''.Configuration::get('MONSTER_ECOMAIL_APP_ID').'\'
 });
-window.ecotrack(\'setUserIdFromLocation\', \'ecmid\');
-window.ecotrack(\'trackPageView\');
-';
+window.ecotrack(\'setUserIdFromLocation\', \'ecmid\');';
 
-        if(isset($this->context->cookie->email)){
-            $output .= 'window.ecotrack(\'setUserId\', \''.$this->context->cookie->email.'\');
-            ';
-        }
+    if(isset($this->context->cookie->email)){
+        $output .= 'window.ecotrack(\'setUserId\', \''.$this->context->cookie->email.'\');
+        ';
+    }
+
+    $output .= 'window.ecotrack(\'trackPageView\');';
 
         if(isset($this->context->cookie->monster_ecomail_cart)){
             $output .= "window.ecotrack('trackUnstructEvent', {
@@ -620,7 +645,7 @@ window.ecotrack(\'trackPageView\');
         }
         $output .= '
 </script>
-<!-- Ecomail stops growing -->';
+<!-- Ecomail stops -->';
 
         return $output;
     }
