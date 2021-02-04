@@ -11,7 +11,7 @@ class monster_ecomail extends Module
     {
         $this->name = 'monster_ecomail';
         $this->tab = 'emailing';
-        $this->version = '1.9.5';
+        $this->version = '1.9.702';
         $this->author = 'MONSTER MEDIA, s.r.o.';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = array('min' => '1.5.1', 'max' => '1.7.999');
@@ -244,10 +244,6 @@ class monster_ecomail extends Module
                     'class' => 't',
                     'label' => $this->l('Odesílat produkty v košíku'),
                     'name' => 'load_cart',
-                    'desc'     => $this->l(
-                        'V případě, že vaši zákazníci objednávají desítky druhů produktů v jedné objednávce, 
-                        doporučujeme tuto funkci deaktivovat nebo řádně otestovat, že nedochází ke zpomalení vašeho košíku.'
-                    ),
                     'values' => array(
                         array(
                             'id' => 'active_on',
@@ -593,20 +589,23 @@ class monster_ecomail extends Module
 
             $products = array();
             foreach($cart_products as $p){
+				$productCat = new Category($p["id_category_default"]);
                 $products[] = array(
                     "productId" => $p["id_product"],
                     "img_url" => $this->context->link->getImageLink($p['link_rewrite'], $p["id_image"]),
-                    "url" => $this->context->link->getProductLink((int)$p["id_product"], $p['link_rewrite'], new Category($p["id_category_default"])),
+                    "url" => $this->context->link->getProductLink((int)$p["id_product"], $p['link_rewrite'], $productCat->link_rewrite[$this->context->language->id]),
                     "name" => $p["name"],
                     "price" => $p["price_wt"],
                     "description" => $p["description_short"]
                 );
             }
-
-            $this->context->cookie->monster_ecomail_cart = json_encode($products);
-        }else{
-            return;
-        }
+            $result = $this->getAPI()->sendBasket($this->context->customer->email, $products);
+            if (isset($result->errors)) {
+				PrestaShopLogger::addLog('Ecomail failed: '. json_encode($result->errors), 1, null, 'Cart', (int)$this->context->cart->id, true);
+			}
+		} else {
+			return;
+		}
     }
 
     public function hookDisplayFooter($params) {
@@ -623,27 +622,14 @@ window.ecotrack(\'newTracker\', \'cf\', \'d2dpiwfhf3tz0r.cloudfront.net\', { // 
 });
 window.ecotrack(\'setUserIdFromLocation\', \'ecmid\');';
 
-    if(isset($this->context->cookie->email)){
-        $output .= 'window.ecotrack(\'setUserId\', \''.$this->context->cookie->email.'\');
-        ';
-    }
+		if(isset($this->context->cookie->email)){
+			$output .= 'window.ecotrack(\'setUserId\', \''.$this->context->cookie->email.'\');
+			';
+		}
 
-    $output .= 'window.ecotrack(\'trackPageView\');';
+		$output .= 'window.ecotrack(\'trackPageView\');';
 
-        if(isset($this->context->cookie->monster_ecomail_cart)){
-            $output .= "window.ecotrack('trackUnstructEvent', {
-            schema: '',
-                data: {
-                action: 'Basket',
-                products: ".$this->context->cookie->monster_ecomail_cart."
-                }
-            })
-        ";
-
-            $this->context->cookie->__unset('monster_ecomail_cart');
-
-        }
-        $output .= '
+		$output .= '
 </script>
 <!-- Ecomail stops -->';
 
