@@ -33,6 +33,31 @@ class EcomailAPI {
         );
 
     }
+    
+    public function sendBasket($email, $products ) {
+        $data = json_encode(
+                    array(
+                        'data' => array( 
+                            'data' => array(
+                                'action' => 'Basket',
+                                'products' => $products
+                                )
+                            )
+                        ));
+        return $this->call(
+            'tracker/events',
+            'POST',
+            array(
+                'event' => array(
+                            'email' => $email,
+                            'category' => 'ue',
+                            'action' => 'Basket',
+                            'label' => 'Basket',
+                            'value' => "$data"
+                            )
+                )
+        );
+    }    
 
     public function createTransaction( Order $order ) {
 
