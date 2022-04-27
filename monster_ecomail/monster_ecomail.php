@@ -96,6 +96,7 @@ class monster_ecomail extends Module
             Configuration::updateValue('MONSTER_ECOMAIL_LIST_ID', Tools::getValue('list_id'));
 
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_ORDER_DATA', Tools::getValue('load_order_data'));
+            Configuration::updateValue('MONSTER_ECOMAIL_LOAD_IGNORING_NEWSLETTER', Tools::getValue('load_ignoring_newsletter'));
 
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_NAME', Tools::getValue('load_name'));
             Configuration::updateValue('MONSTER_ECOMAIL_LOAD_ADDRESS', Tools::getValue('load_address'));
@@ -172,6 +173,24 @@ class monster_ecomail extends Module
                     'class' => 't',
                     'label' => $this->l('Aktualizovat údaje na základě dat z objednávek'),
                     'name' => 'load_order_data',
+                    'values' => array(
+                        array(
+                            'id' => 'active_on',
+                            'value' => 1,
+                            'label' => $this->l('Yes')
+                        ),
+                        array(
+                            'id' => 'active_off',
+                            'value' => 0,
+                            'label' => $this->l('No')
+                        )
+                    ),
+                ),
+                array(
+                    'type' => (_PS_VERSION_ > 1.5) ? 'switch' : 'radio',
+                    'class' => 't',
+                    'label' => $this->l('Odesílat data i bez zaškrtnutí newsletteru'),
+                    'name' => 'load_ignoring_newsletter',
                     'values' => array(
                         array(
                             'id' => 'active_on',
@@ -388,7 +407,8 @@ class monster_ecomail extends Module
             $email = $params['newCustomer']->email;
         }
 
-        if( $newsletter ) {
+	// Odesíláme data pouze pokud zaškrtl v registraci newsletter, nebo to máme vynuceno v nastavení modulu
+        if ($newsletter || Configuration::get('MONSTER_ECOMAIL_LOAD_IGNORING_NEWSLETTER')) {
 
             if( Configuration::get('MONSTER_ECOMAIL_API_KEY') ) {
 
@@ -532,8 +552,8 @@ class monster_ecomail extends Module
         if(Configuration::get('MONSTER_ECOMAIL_LOAD_ORDER_DATA')){
             $customer = new Customer($params['order']->id_customer);
 
-            //pokud zákazník nesouhlasil s newsletterem, neřešíme ho ani zde
-            if($customer->newsletter){
+            // Odesíláme data pouze pokud zákazník zaškrtl newsletter, nebo to máme vynucené v nastavení
+            if ($customer->newsletter || Configuration::get('MONSTER_ECOMAIL_LOAD_IGNORING_NEWSLETTER')){
                 $nameData = array();
                 $birthdayData = array();
                 $addressData = array();
