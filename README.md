@@ -1,14 +1,14 @@
-# Prestashop plugin 1.5-1.7
-Modul pro propojení Ecomail s Prestahopem 1.5 a 1.7
+# Prestashop 1.7+ plugin
+Ecomail to Prestashop 1.7+ plugin
 
-Tento modul automaticky synchronizuje vaše kontakty do vybraného seznamu u Ecomailu, objednávky a instaluje automaticky trackovací kód pro sledování chování kontaktů na vašich stránkách.
+This plugin automatically synchronizes your contacts to a selected list at Ecomail, orders and installs automatically a tracking code to monitor the behavior of contacts on your site.
 
-# Stáhnutí modulu
+# Download module
 
-Aktualní verzi modulu můžete stáhnout zde:
+You can download the latest version of the module here:
 
-https://github.com/Ecomailcz/Prestashop-1.6/releases/download/1.9.703/monster_ecomail_1.9.702.zip
+https://github.com/Ecomailcz/Prestashop-1.6/releases/download/2.0.0/ecomail_2.0.0.zip
 
-Nápovědu k použití modulu naleznete zde:
+Help on how to use the module can be found here:
 
 https://support.ecomail.cz/hc/cs/articles/209707269-Prestashop-plugin-1-6
