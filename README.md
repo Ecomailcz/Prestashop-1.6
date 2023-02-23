@@ -11,4 +11,8 @@ https://github.com/Ecomailcz/Prestashop-1.6/releases/download/2.0/ecomailemailma
 
 Help on how to use the module can be found here:
 
-https://support.ecomail.cz/hc/cs/articles/209707269-Prestashop-plugin-1-6
+CZ:
+https://support.ecomail.cz/cs/articles/66911-prestashop-plugin-1-5-1-7
+
+EN:
+https://support.ecomail.app/en/articles/6983944-integrate-with-prestashop

@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.0';
+        $this->version = '2.0.2';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => '8.0.1'];
@@ -39,7 +39,7 @@ class ecomailemailmarketing extends Module
         parent::__construct();
 
         $this->displayName = $this->l('Ecomail email marketing');
-        $this->description = $this->l('Connection of the e-shop to Ecomail.');
+        $this->description = $this->l('Grow your business with an effective email marketing strategy. Ecomail will boost your sales immediately and save you precious time.');
 
         $this->confirmUninstall = $this->l('Do you really want to uninstall Ecomail?');
     }
@@ -116,6 +116,7 @@ class ecomailemailmarketing extends Module
             $this->registerHook('actionCartSave') &&
             $this->registerHook('actionCustomerAccountUpdate') &&
             $this->registerHook('actionSubmitCustomerAddressForm') &&
+            $this->registerHook('displayBackOfficeHeader') &&
             $this->registerHook('addWebserviceResources');
     }
 
@@ -440,25 +441,20 @@ class ecomailemailmarketing extends Module
                 ],
             ];
         } else {
-            $fields_form[0]['form'] = [
-                'legend' => [
-                    'title' => $this->l('Ecomail configuration'),
-                ],
-                'input' => [
-                    [
-                        'type' => 'text',
-                        'label' => $this->l('Enter your API key'),
-                        'name' => 'api_key',
-                        'rows' => 20,
-                        'required' => true,
-                        'desc' => $this->l('Once your API key is loaded correctly, you will select a list of contacts for your e-shop.'),
-                    ],
-                ],
-                'submit' => [
-                    'title' => $this->l('Save'),
-                    'class' => 'btn btn-default pull-right',
-                ],
-            ];
+            $this->context->smarty->assign(
+                [
+                    'api_key_input' => (Configuration::get($this->name . '_api_key') ? Configuration::get($this->name . '_api_key') : null),
+                ]
+            );
+
+            $ajax_link = $this->context->link->getModuleLink('ecomailemailmarketing', 'ajax', []);
+            Media::addJsDef(
+                [
+                    'ajax_link' => $ajax_link,
+                ]
+            );
+
+            return $this->context->smarty->fetch($this->local_path . 'views/templates/admin/configure.tpl');
         }
 
         $helper = new HelperForm();
@@ -838,11 +834,10 @@ class ecomailemailmarketing extends Module
     public function requestGet(string $url, string $event): ?array
     {
         $ch = curl_init();
-        $display = '?display=full';
+        $display = '?display=full&output_format=JSON';
         $url = $url . $event . $display;
 
         $headers = [
-            'output_format:JSON',
             'Authorization: Basic ' . base64_encode(Configuration::get('ECOMAIL_WEBSERVICE_KEY') . ':'),
         ];
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -980,5 +975,12 @@ class ecomailemailmarketing extends Module
     public function hookAddWebserviceResources(array $params): bool
     {
         return true;
+    }
+
+    public function hookDisplayBackOfficeHeader()
+    {
+        if (Tools::getValue('configure') == $this->name) {
+            $this->context->controller->addJS($this->_path . 'views/js/save.js');
+        }
     }
 }
