@@ -41,7 +41,7 @@ class EcomailAPI
         return $this->call(
             sprintf(
                 'lists/%d/subscribe',
-                $listId
+                urlencode($listId)
             ),
             'POST',
             [
@@ -151,7 +151,7 @@ class EcomailAPI
         return $this->call(
             sprintf(
                 'lists/%d/subscribe-bulk',
-                $listId
+                urlencode($listId)
             ),
             'POST',
             [

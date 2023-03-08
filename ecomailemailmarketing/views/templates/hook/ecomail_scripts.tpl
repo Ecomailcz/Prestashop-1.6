@@ -39,10 +39,10 @@
       g.parentNode.insertBefore(n,g)
     }
   }(window,document,"script","//d70shl7vidtft.cloudfront.net/ecmtr-2.4.2.js","ecotrack"));
-  window.ecotrack('newTracker', 'cf', 'd2dpiwfhf3tz0r.cloudfront.net', { /* Initialise a tracker */  appId: '{$ECOMAIL_APP_ID|escape:'htmlall':'UTF-8'}'});
+  window.ecotrack('newTracker', 'cf', 'd2dpiwfhf3tz0r.cloudfront.net', { /* Initialise a tracker */  appId: '{$ECOMAIL_APP_ID|escape:'javascript':'UTF-8'}'});
 
-  if ('{$EMAIL|escape:'htmlall':'UTF-8'}' !== 'empty'){
-    window.ecotrack('setUserId', '{$EMAIL|escape:'htmlall':'UTF-8'}');
+  if ('{$EMAIL|escape:'javascript':'UTF-8'}' !== 'empty'){
+    window.ecotrack('setUserId', '{$EMAIL|escape:'javascript':'UTF-8'}');
   } else {
     window.ecotrack('setUserIdFromLocation', 'ecmid');
   }
@@ -54,7 +54,7 @@
   (function (w,d,s,o,f,js,fjs) {
     w['ecm-widget']=o;w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };
     js = d.createElement(s), fjs = d.getElementsByTagName(s)[0];
-    js.id = '{$ECOMAIL_FORM_ID|escape:'htmlall':'UTF-8'}'; js.dataset.a = '{$ECOMAIL_FORM_ACCOUNT|escape:'htmlall':'UTF-8'}'; js.src = f; js.async = 1; fjs.parentNode.insertBefore(js, fjs);
+    js.id = '{$ECOMAIL_FORM_ID|escape:'javascript':'UTF-8'}'; js.dataset.a = '{$ECOMAIL_FORM_ACCOUNT|escape:'javascript':'UTF-8'}'; js.src = f; js.async = 1; fjs.parentNode.insertBefore(js, fjs);
   }(window, document, 'script', 'ecmwidget', 'https://d70shl7vidtft.cloudfront.net/widget.js'));
 </script>
 {* Ecomail form end *}
