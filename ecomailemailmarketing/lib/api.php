@@ -22,7 +22,7 @@ if (!defined('_PS_VERSION_')) {
 }
 class EcomailAPI
 {
-    protected string $APIKey;
+    protected $APIKey;
 
     public function setAPIKey($arg): self
     {

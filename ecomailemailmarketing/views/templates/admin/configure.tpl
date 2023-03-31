@@ -38,7 +38,7 @@
 				<strong>{l s='Installation guide' mod='ecomailemailmarketing'}</strong>
 			</p>
 			<p>
-				{l s='Please follow this guide to connect your Prestashop store with Ecomail: ' mod='ecomailemailmarketing'}<a href="{l s='https://support.ecomail.app/en/articles/6983944-integrate-with-prestashop' mod='ecomailemailmarketing'}" target="_blank">{l s='Integrate with Prestashop' mod='ecomailemailmarketing'}</a>
+				{l s='Please follow ' mod='ecomailemailmarketing'}<a href="{l s='https://support.ecomail.app/en/articles/6983944-integrate-with-prestashop' mod='ecomailemailmarketing'}" target="_blank">{l s='this guide ' mod='ecomailemailmarketing'}</a>{l s='to connect your Prestashop store with Ecomail' mod='ecomailemailmarketing'}
 			</p>
 			<p>
 				{l s='If you have any questions or need a helping hand, reach out to our support at: support@ecomail.app' mod='ecomailemailmarketing'}
@@ -46,7 +46,7 @@
 
 		</div>
 		<div class="col-md-6" style="display:flex;justify-content:center;align-items:center;">
-			<iframe class="tag-es" width="400" height="250" src="https://www.youtube.com/embed/2QI4Gt3LnnU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+			<iframe class="tag-es" width="400" height="250" src="{l s='https://www.youtube.com/embed/2QI4Gt3LnnU' mod='ecomailemailmarketing'}" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 		</div>
 	</div>
 </div>
