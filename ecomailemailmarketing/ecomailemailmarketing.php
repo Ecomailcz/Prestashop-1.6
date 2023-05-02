@@ -555,7 +555,7 @@ class ecomailemailmarketing extends Module
                         continue;
                     }
 
-                    $groupTags[] = $group[array_key_first($group)];
+                    $groupTags[] = $group[array_keys($group)[0]];
                 }
             }
 
@@ -624,7 +624,7 @@ class ecomailemailmarketing extends Module
                             continue;
                         }
 
-                        $groupTags[] = $group[array_key_first($group)];
+                        $groupTags[] = $group[array_keys($group)[0]];
                     }
                 }
 
@@ -699,7 +699,7 @@ class ecomailemailmarketing extends Module
                         continue;
                     }
 
-                    $groupTags[] = $group[array_key_first($group)];
+                    $groupTags[] = $group[array_keys($group)[0]];
                 }
             }
 
@@ -807,7 +807,7 @@ class ecomailemailmarketing extends Module
                 foreach ($customer['associations']['groups'] as $group) {
                     $group = new Group((int) $group['id']);
                     $group = (array) $group->name;
-                    $groupTags[] = $group[array_key_first($group)];
+                    $groupTags[] = $group[array_keys($group)[0]];
                 }
             }
 
@@ -927,7 +927,7 @@ class ecomailemailmarketing extends Module
                         continue;
                     }
 
-                    $groupTags[] = $group[array_key_first($group)];
+                    $groupTags[] = $group[array_keys($group)[0]];
                 }
             }
 
@@ -966,7 +966,7 @@ class ecomailemailmarketing extends Module
                     Configuration::get('ECOMAIL_LIST_ID'),
                     array_merge(
                         ['email' => $customer->email],
-                        $addressData,
+                        $addressData
                     )
                 );
         }

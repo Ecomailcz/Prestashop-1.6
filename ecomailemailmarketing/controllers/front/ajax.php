@@ -58,7 +58,7 @@ class EcomailemailmarketingAjaxModuleFrontController extends ModuleFrontControll
         curl_setopt(
             $ch,
             CURLOPT_URL,
-            'https://api2.ecomailapp.cz/account',
+            'https://api2.ecomailapp.cz/account'
         );
         curl_setopt(
             $ch,

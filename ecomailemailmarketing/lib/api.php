@@ -170,7 +170,7 @@ class EcomailAPI
             'POST',
             [
                 'transaction_data' => $data,
-            ],
+            ]
         );
     }
 
