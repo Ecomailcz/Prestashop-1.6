@@ -98,14 +98,14 @@ class EcomailAPI
         );
     }
 
-    protected function call(string $url, string $method = 'GET', ?array $data = null)
+    protected function call(string $url, string $method = 'GET', ?array $data = null, ?bool $apiNew = false)
     {
         $ch = curl_init();
 
         curl_setopt(
             $ch,
             CURLOPT_URL,
-            'https://api2.ecomailapp.cz/' . $url
+            sprintf('https://%s.ecomailapp.cz/%s', $apiNew ? 'apinew' : 'api2', $url)
         );
         curl_setopt(
             $ch,
@@ -236,5 +236,17 @@ class EcomailAPI
         $response = (array) $this->call('account');
 
         return !(isset($response['message']) && $response['message'] === 'Wrong api key');
+    }
+
+    public function prestaInstalled(): void
+    {
+        $this->call('webhooks/prestashop-install', 'POST', null, true);
+    }
+
+    public function prestaUninstalled(): bool
+    {
+        $this->call('webhooks/prestashop-uninstall', 'POST', null, true);
+
+        return true;
     }
 }

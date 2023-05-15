@@ -30,10 +30,10 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.4';
+        $this->version = '2.0.5';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
-        $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => '8.0.1'];
+        $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
         $this->bootstrap = true;
 
         parent::__construct();
@@ -60,7 +60,8 @@ class ecomailemailmarketing extends Module
         return parent::uninstall() &&
             $this->unsetValues() &&
             $this->unsetTab() &&
-            $this->unsetDatabase();
+            $this->unsetDatabase() &&
+            $this->getAPI()->prestaUninstalled();
     }
 
     // Config values
@@ -132,6 +133,8 @@ class ecomailemailmarketing extends Module
                 if (!$this->getAPI()->isApiKeyValid()) {
                     $output .= $this->displayError($this->l('Invalid API key'));
                     Configuration::deleteByName('ECOMAIL_API_KEY');
+                } else {
+                    $this->getAPI()->prestaInstalled();
                 }
             }
 
