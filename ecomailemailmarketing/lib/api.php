@@ -240,12 +240,12 @@ class EcomailAPI
 
     public function prestaInstalled(): void
     {
-        $this->call('webhooks/prestashop-install', 'POST', null, true);
+        $this->call('webhooks/prestashop-install', 'POST', ['key' => $this->APIKey], true);
     }
 
     public function prestaUninstalled(): bool
     {
-        $this->call('webhooks/prestashop-uninstall', 'POST', null, true);
+        $this->call('webhooks/prestashop-uninstall', 'POST', ['key' => $this->APIKey], true);
 
         return true;
     }

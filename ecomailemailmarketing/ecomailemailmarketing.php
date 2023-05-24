@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.5';
+        $this->version = '2.0.6';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -58,10 +58,10 @@ class ecomailemailmarketing extends Module
     public function uninstall(): bool
     {
         return parent::uninstall() &&
+            $this->getAPI()->prestaUninstalled() &&
             $this->unsetValues() &&
             $this->unsetTab() &&
-            $this->unsetDatabase() &&
-            $this->getAPI()->prestaUninstalled();
+            $this->unsetDatabase();
     }
 
     // Config values
@@ -133,8 +133,6 @@ class ecomailemailmarketing extends Module
                 if (!$this->getAPI()->isApiKeyValid()) {
                     $output .= $this->displayError($this->l('Invalid API key'));
                     Configuration::deleteByName('ECOMAIL_API_KEY');
-                } else {
-                    $this->getAPI()->prestaInstalled();
                 }
             }
 
@@ -174,6 +172,7 @@ class ecomailemailmarketing extends Module
         }
 
         if (Configuration::get('ECOMAIL_API_KEY') && $this->getAPI()->getListsCollection()) {
+            $this->getAPI()->prestaInstalled();
             $output .= $this->displayConfirmation($this->l('Connection to Ecomail is active.'));
             $output .= $this->displayConfirmation($this->l('The webhook for updating contacts is at ') . '<strong>' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/modules/ecomailemailmarketing/webhook.php</strong>');
         }
@@ -803,6 +802,8 @@ class ecomailemailmarketing extends Module
             return;
         }
 
+        PrestaShopLogger::addLog(sprintf('Customers count: %s', count($allCustomers['customers'])));
+
         foreach ($allCustomers['customers'] as $customer) {
             $groupTags = [];
 
@@ -825,6 +826,8 @@ class ecomailemailmarketing extends Module
             ];
         }
 
+        PrestaShopLogger::addLog('Customers processed - ready to import');
+
         if (count($customersToImport) > 0) {
             $chunks = array_chunk($customersToImport, 3000);
 
@@ -832,6 +835,8 @@ class ecomailemailmarketing extends Module
                 $this->getAPI()->bulkSubscribeToList($listId, $chunk);
             }
         }
+
+        PrestaShopLogger::addLog('Customers imported');
     }
 
     public function requestGet(string $url, string $event): ?array
@@ -863,6 +868,8 @@ class ecomailemailmarketing extends Module
             return;
         }
 
+        PrestaShopLogger::addLog(sprintf('Orders count: %s', count($allOrders['orders'])));
+
         foreach ($allOrders['orders'] as $order) {
             if (!isset($order['associations']['order_rows'])) {
                 continue;
@@ -881,6 +888,8 @@ class ecomailemailmarketing extends Module
             ];
         }
 
+        PrestaShopLogger::addLog('Orders processed - ready to import');
+
         if (count($ordersToImport) > 0) {
             $chunks = array_chunk($ordersToImport, 1000);
 
@@ -888,6 +897,8 @@ class ecomailemailmarketing extends Module
                 $this->getAPI()->bulkOrders($chunk);
             }
         }
+
+        PrestaShopLogger::addLog('Orders imported');
     }
 
     public function hookActionCustomerAccountUpdate(array $params): void
