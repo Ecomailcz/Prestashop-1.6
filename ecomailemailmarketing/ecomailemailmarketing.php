@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.6';
+        $this->version = '2.0.7';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -792,13 +792,14 @@ class ecomailemailmarketing extends Module
         return true;
     }
 
-    public function syncCustomers(string $listId): void
+    public function syncCustomers(string $listId, int $offset = 0): void
     {
-        $allCustomers = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'customers');
+        $allCustomers = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'customers', $offset, 3000);
 
         $customersToImport = [];
 
         if (!$allCustomers || !isset($allCustomers['customers'])) {
+            PrestaShopLogger::addLog('No customers to sync');
             return;
         }
 
@@ -807,43 +808,52 @@ class ecomailemailmarketing extends Module
         foreach ($allCustomers['customers'] as $customer) {
             $groupTags = [];
 
-            if (isset($customer['associations']) && isset($customer['associations']['groups'])) {
-                foreach ($customer['associations']['groups'] as $group) {
-                    $group = new Group((int) $group['id']);
-                    $group = (array) $group->name;
-                    $groupTags[] = $group[array_keys($group)[0]];
+            if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+                if (isset($customer['associations']) && isset($customer['associations']['groups'])) {
+                    foreach ($customer['associations']['groups'] as $group) {
+                        $group = new Group((int) $group['id']);
+                        $group = (array) $group->name;
+                        $groupTags[] = $group[array_keys($group)[0]];
+                    }
                 }
             }
 
             $newsletterTags = $customer['newsletter'] === '1' ? ['prestashop_newsletter', 'prestashop'] : ['prestashop'];
 
             $customersToImport[] = [
-                'name' => $customer['firstname'],
-                'surname' => $customer['lastname'],
                 'email' => $customer['email'],
-                'birthday' => $customer['birthday'],
                 'tags' => array_merge($groupTags, $newsletterTags),
             ];
+
+            if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+                $customersToImport['name'] = $customer['firstname'];
+                $customersToImport['surname'] = $customer['lastname'];
+            }
+
+            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+                $customersToImport['birthday'] = $customer['birthday'];
+            }
         }
 
         PrestaShopLogger::addLog('Customers processed - ready to import');
 
         if (count($customersToImport) > 0) {
-            $chunks = array_chunk($customersToImport, 3000);
-
-            foreach ($chunks as $chunk) {
-                $this->getAPI()->bulkSubscribeToList($listId, $chunk);
-            }
+            $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
         }
 
-        PrestaShopLogger::addLog('Customers imported');
+        if (count($allCustomers['customers']) === 3000) {
+            $this->syncCustomers($listId, $offset + 3000);
+        } else {
+            PrestaShopLogger::addLog('Customers imported');
+        }
     }
 
-    public function requestGet(string $url, string $event): ?array
+    public function requestGet(string $url, string $event, int $offset, int $limit): ?array
     {
         $ch = curl_init();
         $display = '?display=full&output_format=JSON';
-        $url = $url . $event . $display;
+        $limit = sprintf('&limit=%d,%d', $offset, $limit);
+        $url = $url . $event . $display . $limit;
 
         $headers = [
             'Authorization: Basic ' . base64_encode(Configuration::get('ECOMAIL_WEBSERVICE_KEY') . ':'),
@@ -855,16 +865,17 @@ class ecomailemailmarketing extends Module
 
         curl_close($ch);
 
-        return json_decode(stripslashes($response), true, JSON_UNESCAPED_SLASHES);
+        return json_decode($response, true, JSON_UNESCAPED_SLASHES);
     }
 
-    public function syncOrders(): void
+    public function syncOrders(int $offset = 0): void
     {
-        $allOrders = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'orders');
+        $allOrders = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'orders', $offset, 1000);
 
         $ordersToImport = [];
 
         if (!$allOrders || !isset($allOrders['orders'])) {
+            PrestaShopLogger::addLog('No orders to sync');
             return;
         }
 
@@ -891,14 +902,14 @@ class ecomailemailmarketing extends Module
         PrestaShopLogger::addLog('Orders processed - ready to import');
 
         if (count($ordersToImport) > 0) {
-            $chunks = array_chunk($ordersToImport, 1000);
-
-            foreach ($chunks as $chunk) {
-                $this->getAPI()->bulkOrders($chunk);
-            }
+            $this->getAPI()->bulkOrders($ordersToImport);
         }
 
-        PrestaShopLogger::addLog('Orders imported');
+        if (count($allOrders['orders']) === 1000) {
+            $this->syncOrders($offset + 1000);
+        } else {
+            PrestaShopLogger::addLog('Orders imported');
+        }
     }
 
     public function hookActionCustomerAccountUpdate(array $params): void
