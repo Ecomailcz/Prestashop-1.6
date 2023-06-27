@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.7';
+        $this->version = '2.0.8';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -792,13 +792,18 @@ class ecomailemailmarketing extends Module
         return true;
     }
 
-    public function syncCustomers(string $listId, int $offset = 0): void
+    public function syncCustomers(string $listId, int $offset = 0, bool $forceHttp = false): void
     {
-        $allCustomers = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'customers', $offset, 3000);
+        $allCustomers = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'customers', $offset, 3000);
 
         $customersToImport = [];
 
         if (!$allCustomers || !isset($allCustomers['customers'])) {
+            if (!$forceHttp) {
+                $this->syncCustomers($listId, $offset, true);
+                return;
+            }
+
             PrestaShopLogger::addLog('No customers to sync');
             return;
         }
@@ -842,7 +847,7 @@ class ecomailemailmarketing extends Module
         }
 
         if (count($allCustomers['customers']) === 3000) {
-            $this->syncCustomers($listId, $offset + 3000);
+            $this->syncCustomers($listId, $offset + 3000, $forceHttp);
         } else {
             PrestaShopLogger::addLog('Customers imported');
         }
@@ -868,14 +873,19 @@ class ecomailemailmarketing extends Module
         return json_decode($response, true, JSON_UNESCAPED_SLASHES);
     }
 
-    public function syncOrders(int $offset = 0): void
+    public function syncOrders(int $offset = 0, bool $forceHttp = false): void
     {
-        $allOrders = $this->requestGet(sprintf('%s%sapi/', _PS_BASE_URL_, __PS_BASE_URI__), 'orders', $offset, 1000);
+        $allOrders = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'orders', $offset, 1000);
 
         $ordersToImport = [];
 
         if (!$allOrders || !isset($allOrders['orders'])) {
-            PrestaShopLogger::addLog('No orders to sync');
+            if (!$forceHttp) {
+                $this->syncOrders($offset, true);
+                return;
+            }
+
+            PrestaShopLogger::addLog('No orders to sync - url: ' . $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true));
             return;
         }
 
@@ -906,7 +916,7 @@ class ecomailemailmarketing extends Module
         }
 
         if (count($allOrders['orders']) === 1000) {
-            $this->syncOrders($offset + 1000);
+            $this->syncOrders($offset + 1000, $forceHttp);
         } else {
             PrestaShopLogger::addLog('Orders imported');
         }
