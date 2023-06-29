@@ -189,10 +189,13 @@ class EcomailAPI
             $addressDeliveryCountry = new Country($addressDelivery->id_country);
             $iso_code = $addressDeliveryCountry->iso_code;
 
-            $addressData = [
-                'city' => $addressDelivery->city,
-                'country' => $iso_code,
-            ];
+            if ($addressDelivery->city) {
+                $addressData['city'] = $addressDelivery->city;
+            }
+
+            if ($iso_code) {
+                $addressData['country'] = $iso_code;
+            }
         }
 
         if (is_array($order)) {

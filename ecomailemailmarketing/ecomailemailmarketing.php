@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.8';
+        $this->version = '2.0.9';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -825,19 +825,21 @@ class ecomailemailmarketing extends Module
 
             $newsletterTags = $customer['newsletter'] === '1' ? ['prestashop_newsletter', 'prestashop'] : ['prestashop'];
 
-            $customersToImport[] = [
+            $customerData = [
                 'email' => $customer['email'],
                 'tags' => array_merge($groupTags, $newsletterTags),
             ];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME')) {
-                $customersToImport['name'] = $customer['firstname'];
-                $customersToImport['surname'] = $customer['lastname'];
+                $customerData['name'] = $customer['firstname'];
+                $customerData['surname'] = $customer['lastname'];
             }
 
             if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
-                $customersToImport['birthday'] = $customer['birthday'];
+                $customerData['birthday'] = $customer['birthday'];
             }
+
+            $customersToImport[] = $customerData;
         }
 
         PrestaShopLogger::addLog('Customers processed - ready to import');
