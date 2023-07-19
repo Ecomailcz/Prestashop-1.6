@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.9';
+        $this->version = '2.0.10';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -1017,6 +1017,7 @@ class ecomailemailmarketing extends Module
     public function hookDisplayBackOfficeHeader()
     {
         if (Tools::getValue('configure') == $this->name) {
+            $this->context->controller->addJquery();
             $this->context->controller->addJS($this->_path . 'views/js/save.js');
         }
     }
