@@ -33,7 +33,7 @@ class EcomailAPI
 
     public function getListsCollection()
     {
-        return $this->call('lists');
+        return $this->call('lists', 'GET', null, false);
     }
 
     public function subscribeToList(string $listId, array $customerData)
@@ -50,7 +50,8 @@ class EcomailAPI
                 'update_existing' => true,
                 'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM'),
                 'trigger_autoresponders' => (bool) Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS'),
-            ]
+            ],
+            false
         );
     }
 
@@ -76,7 +77,8 @@ class EcomailAPI
                     'label' => 'Basket',
                     'value' => "$data",
                 ],
-            ]
+            ],
+            false
         );
     }
 
@@ -94,11 +96,12 @@ class EcomailAPI
             [
                 'transaction' => $this->buildTransaction($order),
                 'transaction_items' => $arr,
-            ]
+            ],
+            false
         );
     }
 
-    protected function call(string $url, string $method = 'GET', ?array $data = null, ?bool $apiNew = false)
+    protected function call(string $url, string $method, ?array $data, bool $apiNew)
     {
         $ch = curl_init();
 
@@ -159,7 +162,8 @@ class EcomailAPI
                 'resubscribe' => true,
                 'update_existing' => true,
                 'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM'),
-            ]
+            ],
+            false
         );
     }
 
@@ -170,7 +174,8 @@ class EcomailAPI
             'POST',
             [
                 'transaction_data' => $data,
-            ]
+            ],
+            false
         );
     }
 
@@ -236,7 +241,7 @@ class EcomailAPI
 
     public function isApiKeyValid(): bool
     {
-        $response = (array) $this->call('account');
+        $response = (array) $this->call('account', 'GET', null, false);
 
         return !(isset($response['message']) && $response['message'] === 'Wrong api key');
     }

@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.10';
+        $this->version = '2.0.11';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -46,42 +46,42 @@ class ecomailemailmarketing extends Module
 
     public function install(): bool
     {
-        return parent::install() &&
-            $this->setValues() &&
-            $this->setTab() &&
-            $this->setDatabase() &&
-            $this->setHooks() &&
-            $this->createWebserviceKey() &&
-            unlink(_PS_CACHE_DIR_ . '/class_index.php');
+        return parent::install()
+            && $this->setValues()
+            && $this->setTab()
+            && $this->setDatabase()
+            && $this->setHooks()
+            && $this->createWebserviceKey()
+            && unlink(_PS_CACHE_DIR_ . '/class_index.php');
     }
 
     public function uninstall(): bool
     {
-        return parent::uninstall() &&
-            $this->getAPI()->prestaUninstalled() &&
-            $this->unsetValues() &&
-            $this->unsetTab() &&
-            $this->unsetDatabase();
+        return parent::uninstall()
+            && $this->getAPI()->prestaUninstalled()
+            && $this->unsetValues()
+            && $this->unsetTab()
+            && $this->unsetDatabase();
     }
 
     // Config values
     public function setValues(): bool
     {
         return
-            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', 1) &&
-            Configuration::updateValue('PS_WEBSERVICE', 1) &&
-            Configuration::updateValue('PS_WEBSERVICE_CGI_HOST', 1);
+            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', 1)
+            && Configuration::updateValue('PS_WEBSERVICE', 1)
+            && Configuration::updateValue('PS_WEBSERVICE_CGI_HOST', 1);
     }
 
     public function unsetValues(): bool
     {
         return
-            Configuration::deleteByName('ECOMAIL_API_KEY') &&
-            Configuration::deleteByName('ECOMAIL_APP_ID') &&
-            Configuration::deleteByName('ECOMAIL_FORM_ID') &&
-            Configuration::deleteByName('ECOMAIL_FORM_ACCOUNT') &&
-            Configuration::deleteByName('ECOMAIL_WEBSERVICE_KEY') &&
-            Configuration::deleteByName('ECOMAIL_LIST_ID');
+            Configuration::deleteByName('ECOMAIL_API_KEY')
+            && Configuration::deleteByName('ECOMAIL_APP_ID')
+            && Configuration::deleteByName('ECOMAIL_FORM_ID')
+            && Configuration::deleteByName('ECOMAIL_FORM_ACCOUNT')
+            && Configuration::deleteByName('ECOMAIL_WEBSERVICE_KEY')
+            && Configuration::deleteByName('ECOMAIL_LIST_ID');
     }
 
     // Admin tabs
@@ -110,15 +110,15 @@ class ecomailemailmarketing extends Module
     public function setHooks(): bool
     {
         return
-            $this->registerHook('actionCustomerAccountAdd') &&
-            $this->registerHook('actionValidateOrder') &&
-            $this->registerHook('displayFooter') &&
-            $this->registerHook('actionCustomerNewsletterSubscribed') &&
-            $this->registerHook('actionCartSave') &&
-            $this->registerHook('actionCustomerAccountUpdate') &&
-            $this->registerHook('actionSubmitCustomerAddressForm') &&
-            $this->registerHook('displayBackOfficeHeader') &&
-            $this->registerHook('addWebserviceResources');
+            $this->registerHook('actionCustomerAccountAdd')
+            && $this->registerHook('actionValidateOrder')
+            && $this->registerHook('displayFooter')
+            && $this->registerHook('actionCustomerNewsletterSubscribed')
+            && $this->registerHook('actionCartSave')
+            && $this->registerHook('actionCustomerAccountUpdate')
+            && $this->registerHook('actionSubmitCustomerAddressForm')
+            && $this->registerHook('displayBackOfficeHeader')
+            && $this->registerHook('addWebserviceResources');
     }
 
     public function getContent(): string
@@ -142,11 +142,11 @@ class ecomailemailmarketing extends Module
 
             // Call initial sync
             if (
-                Tools::getValue('sync_existing') &&
-                Configuration::get('ECOMAIL_API_KEY') &&
-                (
-                    (Tools::getValue('sync_existing') !== Configuration::get('ECOMAIL_SYNC_EXISTING')) ||
-                    (Configuration::get('ECOMAIL_LIST_ID') !== Tools::getValue('list_id'))
+                Tools::getValue('sync_existing')
+                && Configuration::get('ECOMAIL_API_KEY')
+                && (
+                    (Tools::getValue('sync_existing') !== Configuration::get('ECOMAIL_SYNC_EXISTING'))
+                    || (Configuration::get('ECOMAIL_LIST_ID') !== Tools::getValue('list_id'))
                 )
             ) {
                 PrestaShopLogger::addLog('Sync customers and orders');
@@ -479,8 +479,8 @@ class ecomailemailmarketing extends Module
         $helper->toolbar_btn = [
             'save' => [
                     'desc' => $this->l('Save'),
-                    'href' => AdminController::$currentIndex . '&configure=' . $this->name . '&save' . $this->name .
-                        '&token=' . Tools::getAdminTokenLite('AdminModules'),
+                    'href' => AdminController::$currentIndex . '&configure=' . $this->name . '&save' . $this->name
+                        . '&token=' . Tools::getAdminTokenLite('AdminModules'),
                 ],
             'back' => [
                 'href' => AdminController::$currentIndex . '&token=' . Tools::getAdminTokenLite('AdminModules'),
@@ -545,6 +545,7 @@ class ecomailemailmarketing extends Module
             }
 
             $groupTags = [];
+
             if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
                 $customer = new Customer($email);
                 $groups = $customer->getGroups();
@@ -640,7 +641,10 @@ class ecomailemailmarketing extends Module
                             $nameData,
                             $birthdayData,
                             $addressData,
-                            ['tags' => array_merge($groupTags, $newsletterTags)]
+                            ['tags' => array_merge($groupTags, $newsletterTags)],
+                            ['custom_fields' => [
+                                'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
+                            ]]
                         )
                     );
             } else {
@@ -717,7 +721,10 @@ class ecomailemailmarketing extends Module
                         ],
                         $nameData,
                         $birthdayData,
-                        $addressData
+                        $addressData,
+                        ['custom_fields' => [
+                            'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer->id_lang),
+                        ]]
                     )
                 );
         }
@@ -801,10 +808,12 @@ class ecomailemailmarketing extends Module
         if (!$allCustomers || !isset($allCustomers['customers'])) {
             if (!$forceHttp) {
                 $this->syncCustomers($listId, $offset, true);
+
                 return;
             }
 
             PrestaShopLogger::addLog('No customers to sync');
+
             return;
         }
 
@@ -814,7 +823,7 @@ class ecomailemailmarketing extends Module
             $groupTags = [];
 
             if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
-                if (isset($customer['associations']) && isset($customer['associations']['groups'])) {
+                if (isset($customer['associations']['groups'])) {
                     foreach ($customer['associations']['groups'] as $group) {
                         $group = new Group((int) $group['id']);
                         $group = (array) $group->name;
@@ -828,6 +837,9 @@ class ecomailemailmarketing extends Module
             $customerData = [
                 'email' => $customer['email'],
                 'tags' => array_merge($groupTags, $newsletterTags),
+                'custom_fields' => [
+                    'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
+                ],
             ];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME')) {
@@ -839,7 +851,29 @@ class ecomailemailmarketing extends Module
                 $customerData['birthday'] = $customer['birthday'];
             }
 
+            if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+                $customerForAddress = new Customer($customer['id']);
+                $customerAddress = $customerForAddress->getAddresses($customerForAddress->id_lang);
+
+                if (isset($customerAddress[0])) {
+                    $country = new Country($customerAddress[0]['id_country']);
+
+                    $customerData['city'] = $customerAddress[0]['city'];
+                    $customerData['street'] = $customerAddress[0]['address1'];
+                    $customerData['zip'] = $customerAddress[0]['postcode'];
+                    $customerData['country'] = $country->iso_code;
+                    $customerData['company'] = $customerAddress[0]['company'];
+                    $customerData['phone'] = $customerAddress[0]['phone'];
+                }
+            }
+
             $customersToImport[] = $customerData;
+        }
+
+        if ($offset === 0) {
+            $firstCustomer = array_shift($customersToImport);
+
+            $this->getAPI()->subscribeToList($listId, $firstCustomer);
         }
 
         PrestaShopLogger::addLog('Customers processed - ready to import');
@@ -884,10 +918,12 @@ class ecomailemailmarketing extends Module
         if (!$allOrders || !isset($allOrders['orders'])) {
             if (!$forceHttp) {
                 $this->syncOrders($offset, true);
+
                 return;
             }
 
             PrestaShopLogger::addLog('No orders to sync - url: ' . $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true));
+
             return;
         }
 
@@ -968,6 +1004,23 @@ class ecomailemailmarketing extends Module
                 }
             }
 
+            $addressData = [];
+            if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+                $customer = $customer ?? new Customer($email);
+                $customerAddress = $customer->getAddresses($customer->id_lang);
+
+                if (isset($customerAddress[0])) {
+                    $addressData = [
+                        'city' => $customerAddress[0]['city'],
+                        'street' => $customerAddress[0]['street'],
+                        'zip' => $customerAddress[0]['zip'],
+                        'country' => $customerAddress[0]['country'],
+                        'company' => $customerAddress[0]['company'],
+                        'phone' => $customerAddress[0]['phone'],
+                    ];
+                }
+            }
+
             $newsletterTags = $newsletter ? ['prestashop', 'prestashop_newsletter'] : ['prestashop'];
 
             $this->getAPI()
@@ -977,6 +1030,7 @@ class ecomailemailmarketing extends Module
                         ['email' => $email],
                         $nameData,
                         $birthdayData,
+                        $addressData,
                         ['tags' => array_merge($groupTags, $newsletterTags)]
                     )
                 );
