@@ -87,7 +87,7 @@ class EcomailAPI
         $arr = [];
 
         foreach ($order->getProducts() as $orderProduct) {
-            $arr[] = $this->buildTransactionItems($orderProduct, (int) $order->date_add);
+            $arr[] = $this->buildTransactionItems($orderProduct, strtotime((int) $order->date_add));
         }
 
         return $this->call(
@@ -189,7 +189,7 @@ class EcomailAPI
         $addressData = [];
 
         if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
-            $addressDelivery = new Address($order->id_address_delivery);
+            $addressDelivery = is_array($order) ? new Address($order['id_address_delivery']) : new Address($order->id_address_delivery);
 
             $addressDeliveryCountry = new Country($addressDelivery->id_country);
             $iso_code = $addressDeliveryCountry->iso_code;
@@ -235,7 +235,7 @@ class EcomailAPI
             'category' => $category->getName(),
             'price' => round($orderProduct['unit_price_tax_incl'], 2),
             'amount' => $orderProduct['product_quantity'],
-            'timestamp' => strtotime($timestamp),
+            'timestamp' => $timestamp,
         ];
     }
 

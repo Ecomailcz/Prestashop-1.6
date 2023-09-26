@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.11';
+        $this->version = '2.0.12';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -938,7 +938,7 @@ class ecomailemailmarketing extends Module
             $transactionItems = [];
 
             foreach ($order['associations']['order_rows'] as $item) {
-                $transactionItems[] = $this->getAPI()->buildTransactionItems($item, $order['date_add']);
+                $transactionItems[] = $this->getAPI()->buildTransactionItems($item, strtotime($order['date_add']));
             }
 
             $ordersToImport[] = [
