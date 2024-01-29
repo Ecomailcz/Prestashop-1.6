@@ -1,5 +1,22 @@
 <?php
-
+/**
+ * Copyright since 2007 PrestaShop SA and Contributors
+ * PrestaShop is an International Registered Trademark & Property of PrestaShop SA
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License version 3.0
+ * that is bundled with this package in the file LICENSE.md.
+ * It is also available through the world-wide-web at this URL:
+ * https://opensource.org/licenses/AFL-3.0
+ * If you did not receive a copy of the license and are unable to
+ * obtain it through the world-wide-web, please send an email
+ * to license@prestashop.com so we can send you a copy immediately.
+ *
+ * @author    PrestaShop SA and Contributors <contact@prestashop.com>
+ * @copyright Since 2007 PrestaShop SA and Contributors
+ * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
+ */
 global $_MODULE;
 $_MODULE = [];
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_5cec8187c025becfa612e74f9808ad0e'] = 'Ecomail e-mail marketing';
@@ -42,14 +59,15 @@ $_MODULE['<{ecomailemailmarketing}prestashop>configure_b3be30b98272e3d2167ce5f9c
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_dd098bf3cde5d02fbc132e9cb203c4f7'] = 'i zaoszczędzisz swój cenny czas. Zaawansowane funkcje, takie jak automatyzacja e-mailów i personalizacja treści, natychmiast zwiększą sprzedaż.';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_2b496a0142c2b0bd28c37ff9662edd47'] = 'Przewodnik instalacji';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_648bf94578216b2f53212eedcf46f977'] = 'Postępuj';
-$_MODULE['<{ecomailemailmarketing}prestashop>configure_b637c705c455b7c4e8356df6ae6c1a31'] = 'https://pomoc.ecomail.app/pl/articles/8439078-integracja-modulu-ecomail-z-prestashop';
+$_MODULE['<{ecomailemailmarketing}prestashop>configure_b637c705c455b7c4e8356df6ae6c1a31'] = 'https://pomoc.ecomail.pl/pl/articles/8439078-integracja-ecomail-z-prestashop';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_3dd96f4ba55d421dc4b6f5cbf5b7ae2d'] = 'zgodnie z tym przewodnikiem,';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_e8045c0b6ca305a5ffca4d6f53ed2c74'] = 'by połączyć Twój sklep internetowy Prestashop z Ecomail.';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_c4e780fa91b56fc3eae6e813f2d833f8'] = 'Jeśli masz pytania lub potrzebujesz pomocy, napisz do nas na: pomoc@ecomail.app';
+$_MODULE['<{ecomailemailmarketing}prestashop>configure_e3c0242c2fc6143089d240db7e0483e9'] = 'https://www.youtube.com/embed/RGBjvK4X1Zk';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_d2126da975d5b9a5b846efaf57d3fd53'] = 'Ogólna konfiguracja';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_177430ed7d0d91dcaf116bd62662bb4a'] = 'Wprowadź klucz API';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_a7e8aa3b699da5b5293699788c4f8e10'] = 'Jeśli jeszcze nie masz konta,';
-$_MODULE['<{ecomailemailmarketing}prestashop>configure_d0e72b7427e9a28c4cdbe63e7692d840'] = 'https://www.ecomail.app/pl';
+$_MODULE['<{ecomailemailmarketing}prestashop>configure_d0e72b7427e9a28c4cdbe63e7692d840'] = 'https://www.ecomail.pl';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_266ddbc0cb4ce73da9be6ff88943c359'] = 'utwórz go tutaj';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_c9cc8cce247e49bae79f15173ce97354'] = 'Zapisz';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_2e92ae79ff32b37fee4368a594792183'] = 'Błąd połączenia';
