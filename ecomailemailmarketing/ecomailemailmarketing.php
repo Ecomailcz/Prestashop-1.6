@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.14';
+        $this->version = '2.0.15';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -773,6 +773,7 @@ class ecomailemailmarketing extends Module
                 'ECOMAIL_FORM_ID' => Configuration::get('ECOMAIL_FORM_ID'),
                 'ECOMAIL_FORM_ACCOUNT' => Configuration::get('ECOMAIL_FORM_ACCOUNT'),
                 'EMAIL' => $this->context->cookie->email ?? 'empty',
+                'PRODUCT_ID' => Tools::getValue('id_product') ?? false,
             ]
         );
 

@@ -41,6 +41,11 @@
     window.ecotrack('setUserIdFromLocation', 'ecmid');
   }
   window.ecotrack('trackPageView');
+
+  if ({$PRODUCT_ID|escape:'javascript':'UTF-8'}){
+    window.ecotrack('trackStructEvent', 'ECM_PRODUCT_VIEW', {$PRODUCT_ID|escape:'javascript':'UTF-8'});
+  }
+
 </script>
 {* Ecomail stops *}
 {* Ecomail form start *}
