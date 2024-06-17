@@ -17,11 +17,12 @@
  * @copyright Since 2007 PrestaShop SA and Contributors
  * @license   https://opensource.org/licenses/AFL-3.0 Academic Free License version 3.0
  */
+
+require dirname(__FILE__) . '/../../config/config.inc.php';
+
 if (!defined('_PS_VERSION_')) {
     exit;
 }
-
-require dirname(__FILE__) . '/../../config/config.inc.php';
 
 $requestJson = Tools::file_get_contents('php://input');
 

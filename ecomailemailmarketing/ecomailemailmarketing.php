@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.16';
+        $this->version = '2.0.17';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -729,7 +729,11 @@ class ecomailemailmarketing extends Module
                 );
         }
 
-        $this->getAPI()->createTransaction($params['order']);
+        $result = $this->getAPI()->createTransaction($params['order']);
+
+        if (isset($result->errors)) {
+            PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'Transaction', null, true);
+        }
     }
 
     public function hookActionCartSave(array $params): void
@@ -874,13 +878,21 @@ class ecomailemailmarketing extends Module
         if ($offset === 0) {
             $firstCustomer = array_shift($customersToImport);
 
-            $this->getAPI()->subscribeToList($listId, $firstCustomer);
+            $result = $this->getAPI()->subscribeToList($listId, $firstCustomer);
+
+            if (isset($result->errors)) {
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'subscribeToList', null, true);
+            }
         }
 
         PrestaShopLogger::addLog('Customers processed - ready to import');
 
         if (count($customersToImport) > 0) {
-            $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
+            $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
+
+            if (isset($result->errors)) {
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'bulkSubscribeToList', null, true);
+            }
         }
 
         if (count($allCustomers['customers']) === 3000) {
@@ -951,7 +963,11 @@ class ecomailemailmarketing extends Module
         PrestaShopLogger::addLog('Orders processed - ready to import');
 
         if (count($ordersToImport) > 0) {
-            $this->getAPI()->bulkOrders($ordersToImport);
+            $result = $this->getAPI()->bulkOrders($ordersToImport);
+
+            if (isset($result->errors)) {
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'bulkOrders', null, true);
+            }
         }
 
         if (count($allOrders['orders']) === 1000) {
