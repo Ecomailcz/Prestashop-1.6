@@ -35,16 +35,16 @@
   }(window,document,"script","//d70shl7vidtft.cloudfront.net/ecmtr-2.4.2.js","ecotrack"));
   window.ecotrack('newTracker', 'cf', 'd2dpiwfhf3tz0r.cloudfront.net', { /* Initialise a tracker */  appId: '{$ECOMAIL_APP_ID|escape:'javascript':'UTF-8'}'});
 
-  if ('{$EMAIL|escape:'javascript':'UTF-8'}' !== 'empty'){
+  {if !empty($EMAIL|escape:'javascript':'UTF-8')}
     window.ecotrack('setUserId', '{$EMAIL|escape:'javascript':'UTF-8'}');
-  } else {
+  {else}
     window.ecotrack('setUserIdFromLocation', 'ecmid');
-  }
+  {/if}
   window.ecotrack('trackPageView');
 
-  if ({$PRODUCT_ID|escape:'javascript':'UTF-8'}){
+  {if !empty($PRODUCT_ID|escape:'javascript':'UTF-8')}
     window.ecotrack('trackStructEvent', 'ECM_PRODUCT_VIEW', {$PRODUCT_ID|escape:'javascript':'UTF-8'});
-  }
+  {/if}
 
 </script>
 {* Ecomail stops *}
