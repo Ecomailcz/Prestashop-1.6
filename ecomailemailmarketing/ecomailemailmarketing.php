@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.18';
+        $this->version = '2.0.19';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -806,7 +806,7 @@ class ecomailemailmarketing extends Module
 
     public function syncCustomers(string $listId, int $offset = 0, bool $forceHttp = false): void
     {
-        $allCustomers = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'customers', $offset, 3000);
+        $allCustomers = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'customers', $offset, 100);
 
         $customersToImport = [];
 
@@ -825,6 +825,10 @@ class ecomailemailmarketing extends Module
         PrestaShopLogger::addLog(sprintf('Customers count: %s', count($allCustomers['customers'])));
 
         foreach ($allCustomers['customers'] as $customer) {
+            if (!isset($customer['email']) || !$customer['email']) {
+                continue;
+            }
+
             $groupTags = [];
 
             if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
@@ -881,7 +885,7 @@ class ecomailemailmarketing extends Module
             $result = $this->getAPI()->subscribeToList($listId, $firstCustomer);
 
             if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'subscribeToList', null, true);
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'subscribeToList', null, true);
             }
         }
 
@@ -891,12 +895,12 @@ class ecomailemailmarketing extends Module
             $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
 
             if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'bulkSubscribeToList', null, true);
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
             }
         }
 
-        if (count($allCustomers['customers']) === 3000) {
-            $this->syncCustomers($listId, $offset + 3000, $forceHttp);
+        if (count($allCustomers['customers']) === 100) {
+            $this->syncCustomers($listId, $offset + 100, $forceHttp);
         } else {
             PrestaShopLogger::addLog('Customers imported');
         }
@@ -924,7 +928,7 @@ class ecomailemailmarketing extends Module
 
     public function syncOrders(int $offset = 0, bool $forceHttp = false): void
     {
-        $allOrders = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'orders', $offset, 1000);
+        $allOrders = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'orders', $offset, 100);
 
         $ordersToImport = [];
 
@@ -948,6 +952,11 @@ class ecomailemailmarketing extends Module
             }
 
             $transaction = $this->getAPI()->buildTransaction($order);
+
+            if (!$transaction) {
+                continue;
+            }
+
             $transactionItems = [];
 
             foreach ($order['associations']['order_rows'] as $item) {
@@ -966,12 +975,12 @@ class ecomailemailmarketing extends Module
             $result = $this->getAPI()->bulkOrders($ordersToImport);
 
             if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result), 1, null, 'bulkOrders', null, true);
+                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
             }
         }
 
-        if (count($allOrders['orders']) === 1000) {
-            $this->syncOrders($offset + 1000, $forceHttp);
+        if (count($allOrders['orders']) === 100) {
+            $this->syncOrders($offset + 100, $forceHttp);
         } else {
             PrestaShopLogger::addLog('Orders imported');
         }

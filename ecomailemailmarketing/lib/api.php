@@ -184,7 +184,7 @@ class EcomailAPI
      *
      * @return array
      */
-    public function buildTransaction($order): array
+    public function buildTransaction($order): ?array
     {
         $addressData = [];
 
@@ -208,6 +208,10 @@ class EcomailAPI
         } else {
             $customer = $order->getCustomer();
             $order = (array) $order;
+        }
+
+        if (!isset($customer->email) || !$customer->email) {
+            return null;
         }
 
         return array_merge(
