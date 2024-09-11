@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.20';
+        $this->version = '2.0.21';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -568,7 +568,7 @@ class ecomailemailmarketing extends Module
                 ->subscribeToList(
                     Configuration::get('ECOMAIL_LIST_ID'),
                     array_merge(
-                        ['email' => $email],
+                        ['email' => $email, 'source' => 'prestashop'],
                         $nameData,
                         $birthdayData,
                         ['tags' => array_merge($groupTags, $newsletterTags)]
@@ -637,7 +637,7 @@ class ecomailemailmarketing extends Module
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID'),
                         array_merge(
-                            ['email' => $customer['email']],
+                            ['email' => $customer['email'], 'source' => 'prestashop'],
                             $nameData,
                             $birthdayData,
                             $addressData,
@@ -651,7 +651,7 @@ class ecomailemailmarketing extends Module
                 $this->getAPI()
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID'),
-                        ['email' => $params['email']]
+                        ['email' => $params['email'], 'source' => 'prestashop']
                     );
             }
         }
@@ -718,6 +718,7 @@ class ecomailemailmarketing extends Module
                         [
                             'email' => $customer->email,
                             'tags' => array_merge($newsletterTags, $groupTags),
+                            'source' => 'prestashop',
                         ],
                         $nameData,
                         $birthdayData,
@@ -851,6 +852,7 @@ class ecomailemailmarketing extends Module
                 'custom_fields' => [
                     'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
                 ],
+                'source' => 'prestashop',
             ];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME')) {
@@ -992,6 +994,7 @@ class ecomailemailmarketing extends Module
     {
         $newsletter = $params['customer']->newsletter;
         $email = $params['customer']->email;
+        $customerId = $params['customer']->id;
 
         if (Configuration::get('ECOMAIL_API_KEY')) {
             $nameData = [];
@@ -1017,7 +1020,8 @@ class ecomailemailmarketing extends Module
 
             $groupTags = [];
             if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
-                $customer = new Customer($email);
+                $customer = new Customer($customerId);
+
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -1034,7 +1038,7 @@ class ecomailemailmarketing extends Module
 
             $addressData = [];
             if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
-                $customer = $customer ?? new Customer($email);
+                $customer = $customer ?? new Customer($customerId);
                 $customerAddress = $customer->getAddresses($customer->id_lang);
 
                 if (isset($customerAddress[0])) {
@@ -1055,7 +1059,7 @@ class ecomailemailmarketing extends Module
                 ->subscribeToList(
                     Configuration::get('ECOMAIL_LIST_ID'),
                     array_merge(
-                        ['email' => $email],
+                        ['email' => $email, 'source' => 'prestashop'],
                         $nameData,
                         $birthdayData,
                         $addressData,
@@ -1084,7 +1088,7 @@ class ecomailemailmarketing extends Module
                 ->subscribeToList(
                     Configuration::get('ECOMAIL_LIST_ID'),
                     array_merge(
-                        ['email' => $customer->email],
+                        ['email' => $customer->email, 'source' => 'prestashop'],
                         $addressData
                     )
                 );
