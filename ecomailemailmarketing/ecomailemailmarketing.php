@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.21';
+        $this->version = '2.0.22';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -112,7 +112,7 @@ class ecomailemailmarketing extends Module
         return
             $this->registerHook('actionCustomerAccountAdd')
             && $this->registerHook('actionValidateOrder')
-            && $this->registerHook('displayFooter')
+            && $this->registerHook('displayAfterBodyOpeningTag')
             && $this->registerHook('actionCustomerNewsletterSubscribed')
             && $this->registerHook('actionCartSave')
             && $this->registerHook('actionCustomerAccountUpdate')
@@ -770,7 +770,7 @@ class ecomailemailmarketing extends Module
         }
     }
 
-    public function hookDisplayFooter(array $params): string
+    public function hookDisplayAfterBodyOpeningTag(array $params): string
     {
         $this->context->smarty->assign(
             [
