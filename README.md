@@ -9,7 +9,7 @@ This plugin automatically synchronizes your contacts to a selected list at Ecoma
 
 You can download the latest version of the module here:
 
-https://github.com/Ecomailcz/Prestashop-1.6/releases/download/2.0.21/ecomailemailmarketing.zip
+https://github.com/Ecomailcz/Prestashop-1.6/releases/download/2.0.22/ecomailemailmarketing.zip
 
 Help on how to use the module can be found here:
 
