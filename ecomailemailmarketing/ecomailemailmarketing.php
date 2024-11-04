@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.22';
+        $this->version = '2.0.23';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -899,7 +899,21 @@ class ecomailemailmarketing extends Module
             $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
 
             if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
+                PrestaShopLogger::addLog('Data contains invalid emails - retry: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
+
+                foreach (array_keys((array) $result->errors) as $error) {
+                    $key = explode('.', $error);
+
+                    if (isset($key[1])) {
+                        unset($customersToImport[$key[1]]);
+                    }
+                }
+
+                $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
+
+                if (isset($result->errors)) {
+                    PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
+                }
             }
         }
 
