@@ -36,7 +36,7 @@ class EcomailAPI
         return $this->call('lists', 'GET', null, false);
     }
 
-    public function subscribeToList(string $listId, array $customerData)
+    public function subscribeToList(string $listId, array $customerData, bool $resubscribe)
     {
         return $this->call(
             sprintf(
@@ -46,7 +46,7 @@ class EcomailAPI
             'POST',
             [
                 'subscriber_data' => $customerData,
-                'resubscribe' => true,
+                'resubscribe' => $resubscribe,
                 'update_existing' => true,
                 'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM'),
                 'trigger_autoresponders' => (bool) Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS'),
@@ -159,9 +159,10 @@ class EcomailAPI
             'POST',
             [
                 'subscriber_data' => $data,
-                'resubscribe' => true,
+                'resubscribe' => false,
                 'update_existing' => true,
-                'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM'),
+                'skip_confirmation' => false,
+                'trigger_autoresponders' => false,
             ],
             false
         );

@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.23';
+        $this->version = '2.0.24';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -572,7 +572,8 @@ class ecomailemailmarketing extends Module
                         $nameData,
                         $birthdayData,
                         ['tags' => array_merge($groupTags, $newsletterTags)]
-                    )
+                    ),
+                    (bool) $newsletter
                 );
         }
     }
@@ -645,13 +646,15 @@ class ecomailemailmarketing extends Module
                             ['custom_fields' => [
                                 'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
                             ]]
-                        )
+                        ),
+                        (bool) $customer->newsletter
                     );
             } else {
                 $this->getAPI()
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID'),
-                        ['email' => $params['email'], 'source' => 'prestashop']
+                        ['email' => $params['email'], 'source' => 'prestashop'],
+                        (bool) $customer->newsletter
                     );
             }
         }
@@ -726,7 +729,8 @@ class ecomailemailmarketing extends Module
                         ['custom_fields' => [
                             'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer->id_lang),
                         ]]
-                    )
+                    ),
+                    (bool) $customer->newsletter
                 );
         }
 
@@ -885,8 +889,9 @@ class ecomailemailmarketing extends Module
 
         if ($offset === 0 && count($customersToImport) > 0) {
             $firstCustomer = array_shift($customersToImport);
+            $hasNewsletter = in_array('prestashop_newsletter', $firstCustomer['tags'], true);
 
-            $result = $this->getAPI()->subscribeToList($listId, $firstCustomer);
+            $result = $this->getAPI()->subscribeToList($listId, $firstCustomer, $hasNewsletter);
 
             if (isset($result->errors)) {
                 PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'subscribeToList', null, true);
@@ -1078,7 +1083,8 @@ class ecomailemailmarketing extends Module
                         $birthdayData,
                         $addressData,
                         ['tags' => array_merge($groupTags, $newsletterTags)]
-                    )
+                    ),
+                    (bool) $newsletter
                 );
         }
     }
@@ -1104,7 +1110,8 @@ class ecomailemailmarketing extends Module
                     array_merge(
                         ['email' => $customer->email, 'source' => 'prestashop'],
                         $addressData
-                    )
+                    ),
+                    (bool) $customer->newsletter
                 );
         }
     }
