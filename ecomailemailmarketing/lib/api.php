@@ -286,4 +286,20 @@ class EcomailAPI
             $parsedUrl === false || !isset($parsedUrl['host']) ? $url : $parsedUrl['host']
         );
     }
+
+    public function updateSubscriberInList(string $listId, array $customerData)
+    {
+        return $this->call(
+            sprintf(
+                'lists/%d/update-subscriber',
+                urlencode($listId)
+            ),
+            'PUT',
+            [
+                'email' => $customerData['email'],
+                'subscriber_data' => $customerData,
+            ],
+            false
+        );
+    }
 }

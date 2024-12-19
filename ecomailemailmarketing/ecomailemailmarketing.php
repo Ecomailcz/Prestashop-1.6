@@ -30,7 +30,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.24';
+        $this->version = '2.0.25';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -115,9 +115,9 @@ class ecomailemailmarketing extends Module
             && $this->registerHook('displayAfterBodyOpeningTag')
             && $this->registerHook('actionCustomerNewsletterSubscribed')
             && $this->registerHook('actionCartSave')
-            && $this->registerHook('actionCustomerAccountUpdate')
             && $this->registerHook('actionSubmitCustomerAddressForm')
             && $this->registerHook('displayBackOfficeHeader')
+            && $this->registerHook('actionObjectCustomerUpdateAfter')
             && $this->registerHook('addWebserviceResources');
     }
 
@@ -1009,19 +1009,20 @@ class ecomailemailmarketing extends Module
         }
     }
 
-    public function hookActionCustomerAccountUpdate(array $params): void
+    public function hookActionObjectCustomerUpdateAfter(array $params): void
     {
-        $newsletter = $params['customer']->newsletter;
-        $email = $params['customer']->email;
-        $customerId = $params['customer']->id;
+        $customer = new Customer($params['customer']->id ?? $params['object']->id);
+
+        $newsletter = $customer->newsletter;
+        $email = $customer->email;
 
         if (Configuration::get('ECOMAIL_API_KEY')) {
             $nameData = [];
             $birthdayData = [];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME')) {
-                $firstname = $params['customer']->firstname;
-                $lastname = $params['customer']->lastname;
+                $firstname = $customer->firstname;
+                $lastname = $customer->lastname;
 
                 $nameData = [
                     'name' => $firstname,
@@ -1030,7 +1031,7 @@ class ecomailemailmarketing extends Module
             }
 
             if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
-                $birthday = $params['customer']->birthday;
+                $birthday = $customer->birthday;
 
                 $birthdayData = [
                     'birthday' => $birthday,
@@ -1039,8 +1040,6 @@ class ecomailemailmarketing extends Module
 
             $groupTags = [];
             if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
-                $customer = new Customer($customerId);
-
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -1057,15 +1056,16 @@ class ecomailemailmarketing extends Module
 
             $addressData = [];
             if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
-                $customer = $customer ?? new Customer($customerId);
                 $customerAddress = $customer->getAddresses($customer->id_lang);
 
                 if (isset($customerAddress[0])) {
+                    $country = new Country($customerAddress[0]['id_country']);
+
                     $addressData = [
                         'city' => $customerAddress[0]['city'],
-                        'street' => $customerAddress[0]['street'],
-                        'zip' => $customerAddress[0]['zip'],
-                        'country' => $customerAddress[0]['country'],
+                        'street' => $customerAddress[0]['address1'],
+                        'zip' => $customerAddress[0]['postcode'],
+                        'country' => $country->iso_code,
                         'company' => $customerAddress[0]['company'],
                         'phone' => $customerAddress[0]['phone'],
                     ];
@@ -1075,16 +1075,15 @@ class ecomailemailmarketing extends Module
             $newsletterTags = $newsletter ? ['prestashop', 'prestashop_newsletter'] : ['prestashop'];
 
             $this->getAPI()
-                ->subscribeToList(
+                ->updateSubscriberInList(
                     Configuration::get('ECOMAIL_LIST_ID'),
                     array_merge(
-                        ['email' => $email, 'source' => 'prestashop'],
+                        ['email' => $email, 'source' => 'prestashop', 'status' => $newsletter ? '1' : '2'],
                         $nameData,
                         $birthdayData,
                         $addressData,
                         ['tags' => array_merge($groupTags, $newsletterTags)]
-                    ),
-                    (bool) $newsletter
+                    )
                 );
         }
     }
