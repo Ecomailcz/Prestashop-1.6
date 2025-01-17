@@ -43,7 +43,24 @@ if ($requestJson) {
 
     foreach ($customers as $customer) {
         $customerObject = new Customer($customer['id_customer']);
-        $customerObject->newsletter = $newsletterStatus;
-        $customerObject->save();
+
+        if (Validate::isLoadedObject($customerObject)) {
+            $shopId = (int) $customerObject->id_shop;
+
+            if ($shopId) {
+                if (Shop::getContext() != Shop::CONTEXT_SHOP || Shop::getContextShopID() != $shopId) {
+                    Shop::setContext(Shop::CONTEXT_SHOP, $shopId);
+                }
+
+                $customerObject->newsletter = $newsletterStatus;
+                if (!$customerObject->save()) {
+                    PrestaShopLogger::addLog('Ecomail Webhook: Failed to save customer newsletter status for ID: ' . $customerObject->id, 3, null, 'Ecomail', null, true);
+                }
+            } else {
+                PrestaShopLogger::addLog('Ecomail Webhook: Invalid shop ID for customer ID: ' . $customerObject->id, 3, null, 'Ecomail', null, true);
+            }
+        } else {
+            PrestaShopLogger::addLog('Ecomail Webhook: Invalid customer object for ID: ' . $customer['id_customer'], 3, null, 'Ecomail', null, true);
+        }
     }
 }

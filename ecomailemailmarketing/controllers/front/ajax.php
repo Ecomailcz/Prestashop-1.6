@@ -44,7 +44,9 @@ class EcomailemailmarketingAjaxModuleFrontController extends ModuleFrontControll
 
     public function saveApi(string $apikey): bool
     {
-        Configuration::updateValue('ECOMAIL_API_KEY', $apikey);
+        $currentShopId = (int) Shop::getContextShopID();
+
+        Configuration::updateValue('ECOMAIL_API_KEY', $apikey, false, null, $currentShopId);
 
         return true;
     }

@@ -23,14 +23,12 @@ if (!defined('_PS_VERSION_')) {
 
 class ecomailemailmarketing extends Module
 {
-    protected $overridenModules = ['Ps_Emailsubscription'];
-
     public function __construct()
     {
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.25';
+        $this->version = '2.0.26';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -52,7 +50,7 @@ class ecomailemailmarketing extends Module
             && $this->setDatabase()
             && $this->setHooks()
             && $this->createWebserviceKey()
-            && unlink(_PS_CACHE_DIR_ . '/class_index.php');
+            && $this->clearCache();
     }
 
     public function uninstall(): bool
@@ -64,24 +62,44 @@ class ecomailemailmarketing extends Module
             && $this->unsetDatabase();
     }
 
+    public function enable($force_all = false): bool
+    {
+        return parent::enable($force_all)
+            && $this->setValues()
+            && $this->setTab()
+            && $this->setDatabase()
+            && $this->setHooks()
+            && $this->createWebserviceKey()
+            && $this->clearCache();
+    }
+
     // Config values
     public function setValues(): bool
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
         return
-            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', 1)
-            && Configuration::updateValue('PS_WEBSERVICE', 1)
-            && Configuration::updateValue('PS_WEBSERVICE_CGI_HOST', 1);
+            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', 1, false, null, $currentShopId)
+            && Configuration::updateValue('PS_WEBSERVICE', 1, false, null, $currentShopId)
+            && Configuration::updateValue('PS_WEBSERVICE_CGI_HOST', 1, false, null, $currentShopId);
     }
 
     public function unsetValues(): bool
     {
-        return
-            Configuration::deleteByName('ECOMAIL_API_KEY')
-            && Configuration::deleteByName('ECOMAIL_APP_ID')
-            && Configuration::deleteByName('ECOMAIL_FORM_ID')
-            && Configuration::deleteByName('ECOMAIL_FORM_ACCOUNT')
-            && Configuration::deleteByName('ECOMAIL_WEBSERVICE_KEY')
-            && Configuration::deleteByName('ECOMAIL_LIST_ID');
+        $configKeys = [
+            'ECOMAIL_API_KEY',
+            'ECOMAIL_APP_ID',
+            'ECOMAIL_FORM_ID',
+            'ECOMAIL_FORM_ACCOUNT',
+            'ECOMAIL_WEBSERVICE_KEY',
+            'ECOMAIL_LIST_ID',
+        ];
+
+        foreach ($configKeys as $key) {
+            Configuration::deleteByName($key);
+        }
+
+        return true;
     }
 
     // Admin tabs
@@ -113,7 +131,7 @@ class ecomailemailmarketing extends Module
             $this->registerHook('actionCustomerAccountAdd')
             && $this->registerHook('actionValidateOrder')
             && $this->registerHook('displayAfterBodyOpeningTag')
-            && $this->registerHook('actionCustomerNewsletterSubscribed')
+            && $this->registerHook('actionNewsletterRegistrationAfter')
             && $this->registerHook('actionCartSave')
             && $this->registerHook('actionSubmitCustomerAddressForm')
             && $this->registerHook('displayBackOfficeHeader')
@@ -124,29 +142,42 @@ class ecomailemailmarketing extends Module
     public function getContent(): string
     {
         $output = null;
+        $currentShopId = (int) Shop::getContextShopID();
 
         if (Tools::isSubmit('submit' . $this->name)) {
-            $apiKey = Configuration::get('ECOMAIL_API_KEY');
-            Configuration::updateValue('ECOMAIL_API_KEY', Tools::getValue('api_key'));
+            $apiKey = Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_API_KEY', Tools::getValue('api_key'), false, null, $currentShopId);
 
             if (Tools::getValue('api_key') !== $apiKey) {
                 if (!$this->getAPI()->isApiKeyValid()) {
                     $output .= $this->displayError($this->l('Invalid API key'));
-                    Configuration::deleteByName('ECOMAIL_API_KEY');
+
+                    $shopId = (int) Shop::getContextShopID();
+
+                    if (version_compare(_PS_VERSION_, '1.7.7.0', '>=')) {
+                        Configuration::deleteFromContext('ECOMAIL_API_KEY', null, $shopId);
+                    } else {
+                        $originalContext = Shop::getContext();
+                        Shop::setContext(Shop::CONTEXT_SHOP, $shopId);
+
+                        Configuration::deleteByName('ECOMAIL_API_KEY');
+
+                        Shop::setContext($originalContext);
+                    }
                 }
             }
 
-            Configuration::updateValue('ECOMAIL_APP_ID', Tools::getValue('app_id'));
-            Configuration::updateValue('ECOMAIL_FORM_ID', Tools::getValue('form_id'));
-            Configuration::updateValue('ECOMAIL_FORM_ACCOUNT', Tools::getValue('form_account'));
+            Configuration::updateValue('ECOMAIL_APP_ID', Tools::getValue('app_id'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_FORM_ID', Tools::getValue('form_id'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_FORM_ACCOUNT', Tools::getValue('form_account'), false, null, $currentShopId);
 
             // Call initial sync
             if (
                 Tools::getValue('sync_existing')
-                && Configuration::get('ECOMAIL_API_KEY')
+                && Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)
                 && (
-                    (Tools::getValue('sync_existing') !== Configuration::get('ECOMAIL_SYNC_EXISTING'))
-                    || (Configuration::get('ECOMAIL_LIST_ID') !== Tools::getValue('list_id'))
+                    (Tools::getValue('sync_existing') !== Configuration::get('ECOMAIL_SYNC_EXISTING', null, null, $currentShopId))
+                    || (Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId) !== Tools::getValue('list_id'))
                 )
             ) {
                 PrestaShopLogger::addLog('Sync customers and orders');
@@ -155,26 +186,29 @@ class ecomailemailmarketing extends Module
                 $output .= $this->displayConfirmation($this->l('Synchronisation of existing contacts and orders was successful.'));
             }
 
-            Configuration::updateValue('ECOMAIL_LIST_ID', Tools::getValue('list_id'));
-            Configuration::updateValue('ECOMAIL_LOAD_ORDER_DATA', Tools::getValue('load_order_data'));
-            Configuration::updateValue('ECOMAIL_LOAD_NAME', Tools::getValue('load_name'));
-            Configuration::updateValue('ECOMAIL_LOAD_ADDRESS', Tools::getValue('load_address'));
-            Configuration::updateValue('ECOMAIL_LOAD_BIRTHDAY', Tools::getValue('load_birthday'));
-            Configuration::updateValue('ECOMAIL_LOAD_CART', Tools::getValue('load_cart'));
-            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', Tools::getValue('skip_confirmation'));
-            Configuration::updateValue('ECOMAIL_SYNC_EXISTING', Tools::getValue('sync_existing'));
-            Configuration::updateValue('ECOMAIL_LOAD_GROUP', Tools::getValue('load_group'));
-            Configuration::updateValue('ECOMAIL_TRIGGER_AUTORESPONDERS', Tools::getValue('trigger_autoresponders'));
+            Configuration::updateValue('ECOMAIL_LIST_ID', Tools::getValue('list_id'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_ORDER_DATA', Tools::getValue('load_order_data'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_NAME', Tools::getValue('load_name'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_ADDRESS', Tools::getValue('load_address'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_BIRTHDAY', Tools::getValue('load_birthday'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_CART', Tools::getValue('load_cart'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_SKIP_CONFIRM', Tools::getValue('skip_confirmation'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_SYNC_EXISTING', Tools::getValue('sync_existing'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_LOAD_GROUP', Tools::getValue('load_group'), false, null, $currentShopId);
+            Configuration::updateValue('ECOMAIL_TRIGGER_AUTORESPONDERS', Tools::getValue('trigger_autoresponders'), false, null, $currentShopId);
         }
 
-        if (Configuration::get('ECOMAIL_API_KEY') && !$this->getAPI()->getListsCollection()) {
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && !$this->getAPI()->getListsCollection()) {
             $output .= $this->displayError($this->l('Unable to connect to Ecomail. Please check your API key.'));
         }
 
-        if (Configuration::get('ECOMAIL_API_KEY') && $this->getAPI()->getListsCollection()) {
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $this->getAPI()->prestaInstalled();
             $output .= $this->displayConfirmation($this->l('Connection to Ecomail is active.'));
-            $output .= $this->displayConfirmation($this->l('The webhook for updating contacts is at ') . '<strong>' . (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/modules/ecomailemailmarketing/webhook.php</strong>');
+
+            $shopUrl = Context::getContext()->shop->getBaseURL(true, true);
+
+            $output .= $this->displayConfirmation($this->l('The webhook for updating contacts is at ') . '<strong>' . $shopUrl . 'modules/ecomailemailmarketing/webhook.php</strong>');
         }
 
         return $output . $this->displayForm();
@@ -182,12 +216,13 @@ class ecomailemailmarketing extends Module
 
     public function displayForm(): string
     {
+        $currentShopId = (int) Shop::getContextShopID();
         // Get default language
-        $default_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+        $default_lang = (int) Configuration::get('PS_LANG_DEFAULT', null, null, $currentShopId);
 
-        if (Configuration::get('ECOMAIL_API_KEY') && $this->getAPI()->getListsCollection()) {
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $options = [];
-            if (Configuration::get('ECOMAIL_API_KEY')) {
+            if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
                 $listsCollection = $this->getAPI()
                     ->getListsCollection();
                 foreach ($listsCollection as $list) {
@@ -445,11 +480,12 @@ class ecomailemailmarketing extends Module
         } else {
             $this->context->smarty->assign(
                 [
-                    'api_key_input' => (Configuration::get($this->name . '_api_key') ? Configuration::get($this->name . '_api_key') : null),
+                    'api_key_input' => (Configuration::get($this->name . '_api_key', null, null, $currentShopId) ? Configuration::get($this->name . '_api_key', null, null, $currentShopId) : null),
                 ]
             );
 
-            $ajax_link = $this->context->link->getModuleLink('ecomailemailmarketing', 'ajax', []);
+            $ajax_link = $this->context->link->getModuleLink('ecomailemailmarketing', 'ajax', [], true);
+
             Media::addJsDef(
                 [
                     'ajax_link' => $ajax_link,
@@ -489,21 +525,21 @@ class ecomailemailmarketing extends Module
         ];
 
         // Load current value
-        $helper->fields_value['api_key'] = Configuration::get('ECOMAIL_API_KEY');
-        $helper->fields_value['app_id'] = Configuration::get('ECOMAIL_APP_ID');
-        $helper->fields_value['form_id'] = Configuration::get('ECOMAIL_FORM_ID');
-        $helper->fields_value['form_account'] = Configuration::get('ECOMAIL_FORM_ACCOUNT');
-        $helper->fields_value['list_id'] = Configuration::get('ECOMAIL_LIST_ID');
-        $helper->fields_value['load_order_data'] = Configuration::get('ECOMAIL_LOAD_ORDER_DATA');
+        $helper->fields_value['api_key'] = Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId);
+        $helper->fields_value['app_id'] = Configuration::get('ECOMAIL_APP_ID', null, null, $currentShopId);
+        $helper->fields_value['form_id'] = Configuration::get('ECOMAIL_FORM_ID', null, null, $currentShopId);
+        $helper->fields_value['form_account'] = Configuration::get('ECOMAIL_FORM_ACCOUNT', null, null, $currentShopId);
+        $helper->fields_value['list_id'] = Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId);
+        $helper->fields_value['load_order_data'] = Configuration::get('ECOMAIL_LOAD_ORDER_DATA', null, null, $currentShopId);
 
-        $helper->fields_value['load_name'] = Configuration::get('ECOMAIL_LOAD_NAME');
-        $helper->fields_value['load_address'] = Configuration::get('ECOMAIL_LOAD_ADDRESS');
-        $helper->fields_value['load_birthday'] = Configuration::get('ECOMAIL_LOAD_BIRTHDAY');
-        $helper->fields_value['load_cart'] = Configuration::get('ECOMAIL_LOAD_CART');
-        $helper->fields_value['skip_confirmation'] = Configuration::get('ECOMAIL_SKIP_CONFIRM');
-        $helper->fields_value['sync_existing'] = Configuration::get('ECOMAIL_SYNC_EXISTING');
-        $helper->fields_value['load_group'] = Configuration::get('ECOMAIL_LOAD_GROUP');
-        $helper->fields_value['trigger_autoresponders'] = Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS');
+        $helper->fields_value['load_name'] = Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId);
+        $helper->fields_value['load_address'] = Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId);
+        $helper->fields_value['load_birthday'] = Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId);
+        $helper->fields_value['load_cart'] = Configuration::get('ECOMAIL_LOAD_CART', null, null, $currentShopId);
+        $helper->fields_value['skip_confirmation'] = Configuration::get('ECOMAIL_SKIP_CONFIRM', null, null, $currentShopId);
+        $helper->fields_value['sync_existing'] = Configuration::get('ECOMAIL_SYNC_EXISTING', null, null, $currentShopId);
+        $helper->fields_value['load_group'] = Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId);
+        $helper->fields_value['trigger_autoresponders'] = Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS', null, null, $currentShopId);
 
         return $helper->generateForm($fields_form);
     }
@@ -512,8 +548,10 @@ class ecomailemailmarketing extends Module
     {
         require_once __DIR__ . '/lib/api.php';
 
+        $currentShopId = (int) Shop::getContextShopID();
+
         $obj = new EcomailAPI();
-        $obj->setAPIKey(Configuration::get('ECOMAIL_API_KEY'));
+        $obj->setAPIKey(Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId));
 
         return $obj;
     }
@@ -523,12 +561,13 @@ class ecomailemailmarketing extends Module
     {
         $newsletter = $params['newCustomer']->newsletter;
         $email = $params['newCustomer']->email;
+        $currentShopId = (int) Shop::getContextShopID();
 
-        if (Configuration::get('ECOMAIL_API_KEY')) {
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
             $nameData = [];
             $birthdayData = [];
 
-            if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+            if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
                 $firstname = $params['newCustomer']->firstname;
                 $lastname = $params['newCustomer']->lastname;
 
@@ -538,7 +577,7 @@ class ecomailemailmarketing extends Module
                 ];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                 $birthdayData = [
                     'birthday' => $params['newCustomer']->birthday,
                 ];
@@ -546,7 +585,7 @@ class ecomailemailmarketing extends Module
 
             $groupTags = [];
 
-            if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+            if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
                 $customer = new Customer($email);
                 $groups = $customer->getGroups();
 
@@ -566,7 +605,7 @@ class ecomailemailmarketing extends Module
 
             $this->getAPI()
                 ->subscribeToList(
-                    Configuration::get('ECOMAIL_LIST_ID'),
+                    Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
                         ['email' => $email, 'source' => 'prestashop'],
                         $nameData,
@@ -578,10 +617,11 @@ class ecomailemailmarketing extends Module
         }
     }
 
-    // blocknewsletter - customer subscribe
-    public function hookActionCustomerNewsletterSubscribed(array $params): void
+    public function hookActionNewsletterRegistrationAfter(array $params): void
     {
-        if (Configuration::get('ECOMAIL_API_KEY')) {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
             $customer = Customer::getCustomersByEmail($params['email']);
 
             if ($customer) {
@@ -591,20 +631,20 @@ class ecomailemailmarketing extends Module
                 $birthdayData = [];
                 $addressData = [];
 
-                if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+                if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
                     $nameData = [
                         'name' => $customer['firstname'],
                         'surname' => $customer['lastname'],
                     ];
                 }
 
-                if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+                if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                     $birthdayData = [
                         'birthday' => $customer['birthday'],
                     ];
                 }
 
-                if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+                if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
                     if (isset($params['order'])) {
                         $address = new Address($params['order']->id_address_invoice);
                         $country = new Country($address->id_country);
@@ -617,7 +657,7 @@ class ecomailemailmarketing extends Module
                 }
 
                 $groupTags = [];
-                if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+                if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
                     $groups = $customer->getGroups();
 
                     foreach ($groups as $group) {
@@ -636,7 +676,7 @@ class ecomailemailmarketing extends Module
 
                 $this->getAPI()
                     ->subscribeToList(
-                        Configuration::get('ECOMAIL_LIST_ID'),
+                        Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                         array_merge(
                             ['email' => $customer['email'], 'source' => 'prestashop'],
                             $nameData,
@@ -652,8 +692,8 @@ class ecomailemailmarketing extends Module
             } else {
                 $this->getAPI()
                     ->subscribeToList(
-                        Configuration::get('ECOMAIL_LIST_ID'),
-                        ['email' => $params['email'], 'source' => 'prestashop'],
+                        Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
+                        ['email' => $params['email'], 'source' => 'prestashop', 'tags' => ['prestashop', 'prestashop_newsletter']],
                         (bool) $customer->newsletter
                     );
             }
@@ -663,27 +703,29 @@ class ecomailemailmarketing extends Module
     // Order submitted
     public function hookActionValidateOrder(array $params): void
     {
-        if (Configuration::get('ECOMAIL_LOAD_ORDER_DATA')) {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (Configuration::get('ECOMAIL_LOAD_ORDER_DATA', null, null, $currentShopId)) {
             $customer = new Customer($params['order']->id_customer);
 
             $nameData = [];
             $birthdayData = [];
             $addressData = [];
 
-            if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+            if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
                 $nameData = [
                     'name' => $customer->firstname,
                     'surname' => $customer->lastname,
                 ];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                 $birthdayData = [
                     'birthday' => $customer->birthday,
                 ];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+            if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
                 $address = new Address($params['order']->id_address_invoice);
                 $country = new Country($address->id_country);
 
@@ -697,7 +739,7 @@ class ecomailemailmarketing extends Module
             }
 
             $groupTags = [];
-            if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+            if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -716,7 +758,7 @@ class ecomailemailmarketing extends Module
 
             $this->getAPI()
                 ->subscribeToList(
-                    Configuration::get('ECOMAIL_LIST_ID'),
+                    Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
                         [
                             'email' => $customer->email,
@@ -743,7 +785,9 @@ class ecomailemailmarketing extends Module
 
     public function hookActionCartSave(array $params): void
     {
-        if (Configuration::get('ECOMAIL_LOAD_CART')) {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (Configuration::get('ECOMAIL_LOAD_CART', null, null, $currentShopId)) {
             if (!isset($this->context->cart)) {
                 return;
             }
@@ -762,7 +806,7 @@ class ecomailemailmarketing extends Module
                 ];
             }
 
-            if (!$this->context->customer->email) {
+            if (!$this->context->customer->email || count($products) === 0) {
                 return;
             }
 
@@ -776,11 +820,13 @@ class ecomailemailmarketing extends Module
 
     public function hookDisplayAfterBodyOpeningTag(array $params): string
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
         $this->context->smarty->assign(
             [
-                'ECOMAIL_APP_ID' => Configuration::get('ECOMAIL_APP_ID'),
-                'ECOMAIL_FORM_ID' => Configuration::get('ECOMAIL_FORM_ID'),
-                'ECOMAIL_FORM_ACCOUNT' => Configuration::get('ECOMAIL_FORM_ACCOUNT'),
+                'ECOMAIL_APP_ID' => Configuration::get('ECOMAIL_APP_ID', null, null, $currentShopId),
+                'ECOMAIL_FORM_ID' => Configuration::get('ECOMAIL_FORM_ID', null, null, $currentShopId),
+                'ECOMAIL_FORM_ACCOUNT' => Configuration::get('ECOMAIL_FORM_ACCOUNT', null, null, $currentShopId),
                 'EMAIL' => $this->context->cookie->email,
                 'PRODUCT_ID' => Tools::getValue('id_product'),
             ]
@@ -791,9 +837,15 @@ class ecomailemailmarketing extends Module
 
     public function createWebserviceKey(): bool
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if ($currentShopId !== 0) {
+            Shop::setContext(Shop::CONTEXT_SHOP, $currentShopId);
+        }
+
         $apiAccess = new WebserviceKey();
         $apiAccess->key = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 1, 32);
-        $apiAccess->description = 'Ecomail webservice key';
+        $apiAccess->description = 'Ecomail webservice key' . ($currentShopId !== 0 ? ' for shopId ' . $currentShopId : '');
         $apiAccess->save();
 
         $permissions = [
@@ -804,24 +856,22 @@ class ecomailemailmarketing extends Module
         ];
 
         WebserviceKey::setPermissionForAccount($apiAccess->id, $permissions);
-        Configuration::updateValue('ECOMAIL_WEBSERVICE_KEY', $apiAccess->key);
+        Configuration::updateValue('ECOMAIL_WEBSERVICE_KEY', $apiAccess->key, false, null, $currentShopId);
 
         return true;
     }
 
-    public function syncCustomers(string $listId, int $offset = 0, bool $forceHttp = false): void
+    public function syncCustomers(string $listId, int $offset = 0): void
     {
-        $allCustomers = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'customers', $offset, 1000);
+        $currentShopId = (int) Shop::getContextShopID();
+
+        $webServiceUrl = Context::getContext()->shop->getBaseURL(true, true) . 'api/';
+
+        $allCustomers = $this->requestGet($webServiceUrl, 'customers', $offset, 1000);
 
         $customersToImport = [];
 
         if (!$allCustomers || !isset($allCustomers['customers'])) {
-            if (!$forceHttp) {
-                $this->syncCustomers($listId, $offset, true);
-
-                return;
-            }
-
             PrestaShopLogger::addLog('No customers to sync');
 
             return;
@@ -838,7 +888,7 @@ class ecomailemailmarketing extends Module
 
             $groupTags = [];
 
-            if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+            if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
                 if (isset($customer['associations']['groups'])) {
                     foreach ($customer['associations']['groups'] as $group) {
                         $group = new Group((int) $group['id']);
@@ -859,16 +909,16 @@ class ecomailemailmarketing extends Module
                 'source' => 'prestashop',
             ];
 
-            if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+            if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
                 $customerData['name'] = $customer['firstname'];
                 $customerData['surname'] = $customer['lastname'];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                 $customerData['birthday'] = $customer['birthday'];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+            if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
                 $customerForAddress = new Customer($customer['id']);
                 $customerAddress = $customerForAddress->getAddresses($customerForAddress->id_lang);
 
@@ -923,7 +973,7 @@ class ecomailemailmarketing extends Module
         }
 
         if (count($allCustomers['customers']) === 1000) {
-            $this->syncCustomers($listId, $offset + 1000, $forceHttp);
+            $this->syncCustomers($listId, $offset + 1000);
         } else {
             PrestaShopLogger::addLog('Customers imported');
         }
@@ -931,13 +981,16 @@ class ecomailemailmarketing extends Module
 
     public function requestGet(string $url, string $event, int $offset, int $limit): ?array
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
         $ch = curl_init();
         $display = '?display=full&output_format=JSON';
         $limit = sprintf('&limit=%d,%d', $offset, $limit);
+
         $url = $url . $event . $display . $limit;
 
         $headers = [
-            'Authorization: Basic ' . base64_encode(Configuration::get('ECOMAIL_WEBSERVICE_KEY') . ':'),
+            'Authorization: Basic ' . base64_encode(Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId) . ':'),
         ];
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -949,20 +1002,16 @@ class ecomailemailmarketing extends Module
         return json_decode($response, true, JSON_UNESCAPED_SLASHES);
     }
 
-    public function syncOrders(int $offset = 0, bool $forceHttp = false): void
+    public function syncOrders(int $offset = 0): void
     {
-        $allOrders = $this->requestGet(sprintf('%s%sapi/', $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true), __PS_BASE_URI__), 'orders', $offset, 500);
+        $webServiceUrl = Context::getContext()->shop->getBaseURL(true, true) . 'api/';
+
+        $allOrders = $this->requestGet($webServiceUrl, 'orders', $offset, 500);
 
         $ordersToImport = [];
 
         if (!$allOrders || !isset($allOrders['orders'])) {
-            if (!$forceHttp) {
-                $this->syncOrders($offset, true);
-
-                return;
-            }
-
-            PrestaShopLogger::addLog('No orders to sync - url: ' . $forceHttp ? Tools::getShopDomain(true) : Tools::getShopDomainSsl(true));
+            PrestaShopLogger::addLog('No orders to sync - url: ' . $webServiceUrl);
 
             return;
         }
@@ -1003,7 +1052,7 @@ class ecomailemailmarketing extends Module
         }
 
         if (count($allOrders['orders']) === 500) {
-            $this->syncOrders($offset + 500, $forceHttp);
+            $this->syncOrders($offset + 500);
         } else {
             PrestaShopLogger::addLog('Orders imported');
         }
@@ -1011,16 +1060,18 @@ class ecomailemailmarketing extends Module
 
     public function hookActionObjectCustomerUpdateAfter(array $params): void
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
         $customer = new Customer($params['customer']->id ?? $params['object']->id);
 
         $newsletter = $customer->newsletter;
         $email = $customer->email;
 
-        if (Configuration::get('ECOMAIL_API_KEY')) {
+        if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
             $nameData = [];
             $birthdayData = [];
 
-            if (Configuration::get('ECOMAIL_LOAD_NAME')) {
+            if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
                 $firstname = $customer->firstname;
                 $lastname = $customer->lastname;
 
@@ -1030,7 +1081,7 @@ class ecomailemailmarketing extends Module
                 ];
             }
 
-            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY')) {
+            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                 $birthday = $customer->birthday;
 
                 $birthdayData = [
@@ -1039,7 +1090,7 @@ class ecomailemailmarketing extends Module
             }
 
             $groupTags = [];
-            if (Configuration::get('ECOMAIL_LOAD_GROUP')) {
+            if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -1055,7 +1106,7 @@ class ecomailemailmarketing extends Module
             }
 
             $addressData = [];
-            if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+            if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
                 $customerAddress = $customer->getAddresses($customer->id_lang);
 
                 if (isset($customerAddress[0])) {
@@ -1076,7 +1127,7 @@ class ecomailemailmarketing extends Module
 
             $this->getAPI()
                 ->updateSubscriberInList(
-                    Configuration::get('ECOMAIL_LIST_ID'),
+                    Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
                         ['email' => $email, 'source' => 'prestashop', 'status' => $newsletter ? '1' : '2'],
                         $nameData,
@@ -1090,7 +1141,9 @@ class ecomailemailmarketing extends Module
 
     public function hookActionSubmitCustomerAddressForm(array $params): void
     {
-        if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
             $country = new Country($params['address']->id_country);
             $customer = new Customer($params['address']->id_customer);
 
@@ -1105,7 +1158,7 @@ class ecomailemailmarketing extends Module
 
             $this->getAPI()
                 ->subscribeToList(
-                    Configuration::get('ECOMAIL_LIST_ID'),
+                    Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
                         ['email' => $customer->email, 'source' => 'prestashop'],
                         $addressData
@@ -1126,5 +1179,16 @@ class ecomailemailmarketing extends Module
             $this->context->controller->addJquery();
             $this->context->controller->addJS($this->_path . 'views/js/save.js');
         }
+    }
+
+    public function clearCache(): bool
+    {
+        $cacheFile = _PS_CACHE_DIR_ . '/class_index.php';
+
+        if (file_exists($cacheFile)) {
+            unlink($cacheFile);
+        }
+
+        return true;
     }
 }

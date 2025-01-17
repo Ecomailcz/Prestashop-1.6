@@ -38,6 +38,8 @@ class EcomailAPI
 
     public function subscribeToList(string $listId, array $customerData, bool $resubscribe)
     {
+        $currentShopId = (int) Shop::getContextShopID();
+
         return $this->call(
             sprintf(
                 'lists/%d/subscribe',
@@ -48,8 +50,8 @@ class EcomailAPI
                 'subscriber_data' => $customerData,
                 'resubscribe' => $resubscribe,
                 'update_existing' => true,
-                'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM'),
-                'trigger_autoresponders' => (bool) Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS'),
+                'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM', null, null, $currentShopId),
+                'trigger_autoresponders' => (bool) Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS', null, null, $currentShopId),
             ],
             false
         );
@@ -73,7 +75,7 @@ class EcomailAPI
                 'event' => [
                     'email' => $email,
                     'category' => 'ue',
-                    'action' => count($products) === 0 ? 'PrestaEmptyBasket' : 'PrestaBasket',
+                    'action' => 'PrestaBasket',
                     'label' => 'Basket',
                     'value' => "$data",
                 ],
@@ -189,7 +191,9 @@ class EcomailAPI
     {
         $addressData = [];
 
-        if (Configuration::get('ECOMAIL_LOAD_ADDRESS')) {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
             $addressDelivery = is_array($order) ? new Address($order['id_address_delivery']) : new Address($order->id_address_delivery);
 
             $addressDeliveryCountry = new Country($addressDelivery->id_country);

@@ -50,7 +50,7 @@ $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_d7a51fe812f0f
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_8c75142e77b6be2c7c91bcb7ee55fa41'] = 'Formularz rejestracyjny';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_dd76865b6ca63920cc30cef438623629'] = 'Wprowadź ID formularza Ecomail';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_a4b81b886f54cbda1c750cb2b7f0a082'] = 'Wartość js.id w kodzie formularza. Więcej informacji można znaleźć w centrum pomocy.';
-$_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_0aee7c564a9b7cb88043d52b61e6e36a'] = 'Wpisz nazwę konta Ecomail (w formie: NAZWA.ecomailapp.pl)';
+$_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_0aee7c564a9b7cb88043d52b61e6e36a'] = 'Wprowadź swój appID Ecomail';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_630f6dc397fe74e52d5189e2c80f282b'] = 'Wróć do listy';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_1b12bf01cd2f832d79c9be172c27a879'] = 'Informacje o Ecomail';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_3f0fce59605bdfb0773b82bb1e65cb3c'] = 'Rozwiń swój biznes za pomocą skutecznego e-mail marketingu z Ecomail.';
