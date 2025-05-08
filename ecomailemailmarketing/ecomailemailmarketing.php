@@ -28,7 +28,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.26';
+        $this->version = '2.0.27';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -1020,12 +1020,16 @@ class ecomailemailmarketing extends Module
 
         foreach ($allOrders['orders'] as $order) {
             if (!isset($order['associations']['order_rows'])) {
+                PrestaShopLogger::addLog(sprintf('Order %s skipped: missing order_rows', $order['id'] ?? 'Unknown ID'));
+
                 continue;
             }
 
             $transaction = $this->getAPI()->buildTransaction($order);
 
             if (!$transaction) {
+                PrestaShopLogger::addLog(sprintf('Order %s skipped: buildTransaction returned null', $order['id'] ?? 'Unknown ID'));
+
                 continue;
             }
 
