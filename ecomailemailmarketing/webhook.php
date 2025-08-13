@@ -52,7 +52,7 @@ if ($requestJson) {
                     Shop::setContext(Shop::CONTEXT_SHOP, $shopId);
                 }
 
-                $customerObject->newsletter = $newsletterStatus;
+                $customerObject->newsletter = $newsletterStatus === '1';
                 if (!$customerObject->save()) {
                     PrestaShopLogger::addLog('Ecomail Webhook: Failed to save customer newsletter status for ID: ' . $customerObject->id, 3, null, 'Ecomail', null, true);
                 }

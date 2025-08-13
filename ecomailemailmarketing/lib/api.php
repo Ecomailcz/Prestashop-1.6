@@ -239,14 +239,26 @@ class EcomailAPI
     {
         $product = new Product($orderProduct['product_id']);
         $category = new Category($product->getDefaultCategory());
+        $categories = $product->getProductCategoriesFull($orderProduct['product_id']);
+
+        $categoryNames = [];
+
+        if (is_array($categories)) {
+            foreach ($categories as $cat) {
+                if (isset($cat['name'])) {
+                    $categoryNames[] = $cat['name'];
+                }
+            }
+        }
 
         return [
             'code' => $orderProduct['product_reference'],
             'title' => $orderProduct['product_name'],
             'category' => $category->getName(),
-            'price' => round($orderProduct['unit_price_tax_incl'], 2),
+            'price' => round($orderProduct['unit_price_tax_incl'], 2) * ($orderProduct['product_quantity'] ?? 1),
             'amount' => $orderProduct['product_quantity'],
             'timestamp' => $timestamp,
+            'categories' => $categoryNames,
         ];
     }
 

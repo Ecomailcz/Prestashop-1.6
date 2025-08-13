@@ -1,0 +1,5 @@
+front:
+  js:
+    - path: modules/ecomailemailmarketing/views/js/save.js
+      priority: 100
+      position: bottom
