@@ -28,7 +28,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.0.27';
+        $this->version = '2.1.0';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -200,15 +200,16 @@ class ecomailemailmarketing extends Module
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && !$this->getAPI()->getListsCollection()) {
             $output .= $this->displayError($this->l('Unable to connect to Ecomail. Please check your API key.'));
+            PrestaShopLogger::addLog('Ecomail failed. Current shop ID ' . $currentShopId . ' API key ' . Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId));
         }
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $this->getAPI()->prestaInstalled();
             $output .= $this->displayConfirmation($this->l('Connection to Ecomail is active.'));
 
-            $shopUrl = Context::getContext()->shop->getBaseURL(true, true);
+            $shopUrl = $this->context->shop->getBaseURL(true, true);
 
-            $output .= $this->displayConfirmation($this->l('The webhook for updating contacts is at ') . '<strong>' . $shopUrl . 'modules/ecomailemailmarketing/webhook.php</strong>');
+            $output .= $this->displayConfirmation($this->l('The webhook for updating contacts is at ') . ' <strong>' . $shopUrl . 'modules/ecomailemailmarketing/webhook.php</strong>');
         }
 
         return $output . $this->displayForm();
@@ -222,15 +223,13 @@ class ecomailemailmarketing extends Module
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $options = [];
-            if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
-                $listsCollection = $this->getAPI()
-                    ->getListsCollection();
-                foreach ($listsCollection as $list) {
-                    $options[] = [
-                        'id_option' => $list->id,
-                        'name' => $list->name,
-                    ];
-                }
+            $listsCollection = $this->getAPI()
+                ->getListsCollection();
+            foreach ($listsCollection as $list) {
+                $options[] = [
+                    'id_option' => $list->id,
+                    'name' => $list->name,
+                ];
             }
 
             // Init Fields form array
@@ -584,9 +583,9 @@ class ecomailemailmarketing extends Module
             }
 
             $groupTags = [];
+            $customer = new Customer($email);
 
             if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
-                $customer = new Customer($email);
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -607,10 +606,13 @@ class ecomailemailmarketing extends Module
                 ->subscribeToList(
                     Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
-                        ['email' => $email, 'source' => 'prestashop'],
+                        ['email' => $email, 'source' => 'prestashop_webhook'],
                         $nameData,
                         $birthdayData,
-                        ['tags' => array_merge($groupTags, $newsletterTags)]
+                        ['tags' => array_merge($groupTags, $newsletterTags)],
+                        ['custom_fields' => [
+                            'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer->id_lang),
+                        ]]
                     ),
                     (bool) $newsletter
                 );
@@ -678,13 +680,13 @@ class ecomailemailmarketing extends Module
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                         array_merge(
-                            ['email' => $customer['email'], 'source' => 'prestashop'],
+                            ['email' => $customer['email'], 'source' => 'prestashop_webhook'],
                             $nameData,
                             $birthdayData,
                             $addressData,
                             ['tags' => array_merge($groupTags, $newsletterTags)],
                             ['custom_fields' => [
-                                'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
+                                'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer['id_lang']),
                             ]]
                         ),
                         (bool) $customer->newsletter
@@ -693,8 +695,8 @@ class ecomailemailmarketing extends Module
                 $this->getAPI()
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
-                        ['email' => $params['email'], 'source' => 'prestashop', 'tags' => ['prestashop', 'prestashop_newsletter']],
-                        (bool) $customer->newsletter
+                        ['email' => $params['email'], 'source' => 'prestashop_webhook', 'tags' => ['prestashop']],
+                        false
                     );
             }
         }
@@ -763,13 +765,13 @@ class ecomailemailmarketing extends Module
                         [
                             'email' => $customer->email,
                             'tags' => array_merge($newsletterTags, $groupTags),
-                            'source' => 'prestashop',
+                            'source' => 'prestashop_webhook',
                         ],
                         $nameData,
                         $birthdayData,
                         $addressData,
                         ['custom_fields' => [
-                            'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer->id_lang),
+                            'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer->id_lang),
                         ]]
                     ),
                     (bool) $customer->newsletter
@@ -797,11 +799,12 @@ class ecomailemailmarketing extends Module
             $products = [];
             foreach ($cartProducts as $p) {
                 $productCat = new Category($p['id_category_default']);
+
                 $products[] = [
                     'productId' => $p['id_product'],
                     'img_url' => $this->context->link->getImageLink($p['link_rewrite'], $p['id_image']),
                     'url' => $this->context->link->getProductLink((int) $p['id_product'], $p['link_rewrite'], $productCat->link_rewrite[$this->context->language->id]),
-                    'name' => $p['name'],
+                    'name' => trim(sprintf('%s %s', $p['name'], $p['attributes'])),
                     'price' => $p['price_wt'],
                 ];
             }
@@ -827,7 +830,7 @@ class ecomailemailmarketing extends Module
                 'ECOMAIL_APP_ID' => Configuration::get('ECOMAIL_APP_ID', null, null, $currentShopId),
                 'ECOMAIL_FORM_ID' => Configuration::get('ECOMAIL_FORM_ID', null, null, $currentShopId),
                 'ECOMAIL_FORM_ACCOUNT' => Configuration::get('ECOMAIL_FORM_ACCOUNT', null, null, $currentShopId),
-                'EMAIL' => $this->context->cookie->email,
+                'EMAIL' => $this->context->cookie->email ?? '',
                 'PRODUCT_ID' => Tools::getValue('id_product'),
             ]
         );
@@ -865,7 +868,7 @@ class ecomailemailmarketing extends Module
     {
         $currentShopId = (int) Shop::getContextShopID();
 
-        $webServiceUrl = Context::getContext()->shop->getBaseURL(true, true) . 'api/';
+        $webServiceUrl = $this->context->shop->getBaseURL(true, true) . 'api/';
 
         $allCustomers = $this->requestGet($webServiceUrl, 'customers', $offset, 1000);
 
@@ -904,9 +907,9 @@ class ecomailemailmarketing extends Module
                 'email' => $customer['email'],
                 'tags' => array_merge($groupTags, $newsletterTags),
                 'custom_fields' => [
-                    'PRESTA_LANGUAGE' => Language::getIsoById((int) $customer['id_lang']),
+                    'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer['id_lang']),
                 ],
-                'source' => 'prestashop',
+                'source' => 'prestashop_import',
             ];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
@@ -1004,7 +1007,7 @@ class ecomailemailmarketing extends Module
 
     public function syncOrders(int $offset = 0): void
     {
-        $webServiceUrl = Context::getContext()->shop->getBaseURL(true, true) . 'api/';
+        $webServiceUrl = $this->context->shop->getBaseURL(true, true) . 'api/';
 
         $allOrders = $this->requestGet($webServiceUrl, 'orders', $offset, 500);
 
@@ -1051,7 +1054,21 @@ class ecomailemailmarketing extends Module
             $result = $this->getAPI()->bulkOrders($ordersToImport);
 
             if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
+                PrestaShopLogger::addLog('Orders contains invalid data - retry: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
+
+                foreach (array_keys((array) $result->errors) as $error) {
+                    $key = explode('.', $error);
+
+                    if (isset($key[1])) {
+                        unset($ordersToImport[$key[1]]);
+                    }
+                }
+
+                $result = $this->getAPI()->bulkOrders($ordersToImport);
+
+                if (isset($result->errors)) {
+                    PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
+                }
             }
         }
 
@@ -1133,11 +1150,14 @@ class ecomailemailmarketing extends Module
                 ->updateSubscriberInList(
                     Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
-                        ['email' => $email, 'source' => 'prestashop', 'status' => $newsletter ? '1' : '2'],
+                        ['email' => $email, 'source' => 'prestashop_webhook', 'status' => $newsletter ? '1' : '2'],
                         $nameData,
                         $birthdayData,
                         $addressData,
-                        ['tags' => array_merge($groupTags, $newsletterTags)]
+                        ['tags' => array_merge($groupTags, $newsletterTags)],
+                        ['custom_fields' => [
+                            'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer->id_lang),
+                        ]]
                     )
                 );
         }
@@ -1164,7 +1184,7 @@ class ecomailemailmarketing extends Module
                 ->subscribeToList(
                     Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
                     array_merge(
-                        ['email' => $customer->email, 'source' => 'prestashop'],
+                        ['email' => $customer->email, 'source' => 'prestashop_webhook'],
                         $addressData
                     ),
                     (bool) $customer->newsletter
@@ -1180,8 +1200,12 @@ class ecomailemailmarketing extends Module
     public function hookDisplayBackOfficeHeader()
     {
         if (Tools::getValue('configure') == $this->name) {
-            $this->context->controller->addJquery();
-            $this->context->controller->addJS($this->_path . 'views/js/save.js');
+            if (method_exists($this->context->controller, 'addJquery')) {
+                $this->context->controller->addJquery();
+            }
+            if (method_exists($this->context->controller, 'addJS')) {
+                $this->context->controller->addJS($this->_path . 'views/js/save.js');
+            }
         }
     }
 
