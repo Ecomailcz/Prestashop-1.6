@@ -44,24 +44,38 @@
 		</div>
 	</div>
 </div>
-
-<div class="panel container">
-	<div class="panel-heading"><i class="icon-search"></i> {l s='General configuration' mod='ecomailemailmarketing'}</div>
-	<div class="row">
-		<div class="col-md-12">
-			<div class="form-group">
-				<label for="api_key">API KEY</label>
-				<input type="text" class="form-control" id="api_key" aria-describedby="apiHelp"
-					   placeholder="{l s='Enter the API KEY' mod='ecomailemailmarketing'}">
-				<small id="apiHelp"
-					   class="form-text text-muted tag-es">{l s='If you dont have an account,' mod='ecomailemailmarketing'} <a href="{l s='https://www.ecomail.app/' mod='ecomailemailmarketing'}" target="_blank">{l s='create it here' mod='ecomailemailmarketing'}</a></small>
+{if !$has_multistore_without_shop}
+	<div class="panel container">
+		<div class="panel-heading"><i class="icon-search"></i> {l s='General configuration' mod='ecomailemailmarketing'}</div>
+		<div class="row">
+			<div class="col-md-12">
+				<div class="form-group">
+					<label for="api_key">API KEY</label>
+					<input type="text" class="form-control" id="api_key" aria-describedby="apiHelp"
+						   placeholder="{l s='Enter the API KEY' mod='ecomailemailmarketing'}">
+					<small id="apiHelp"
+						   class="form-text text-muted tag-es">{l s='If you dont have an account,' mod='ecomailemailmarketing'} <a href="{l s='https://www.ecomail.app/' mod='ecomailemailmarketing'}" target="_blank">{l s='create it here' mod='ecomailemailmarketing'}</a></small>
+				</div>
+			</div>
+			<div class="col-md-12">
+				<button type="button" class="btn btn-primary pull-right" id="submit_key">{l s='Save' mod='ecomailemailmarketing'}</button>
 			</div>
 		</div>
-		<div class="col-md-12">
-			<button type="button" class="btn btn-primary pull-right" id="submit_key">{l s='Save' mod='ecomailemailmarketing'}</button>
+	</div>
+{else}
+	<div class="panel container">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="form-group mb-0">
+					<div class="alert alert-warning">
+						<p>{l s='You are using PrestaShop in a multistore setup. Please make sure to select a specific store when working with this module.' mod='ecomailemailmarketing'}</p>
+						<p>{l s='To get started, please select a single shop in your back office.' mod='ecomailemailmarketing'}</p>
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
-</div>
+{/if}
 
 <script>
   const message_error_ajax = "{l s='Connection error' mod='ecomailemailmarketing'}";

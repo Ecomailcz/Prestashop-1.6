@@ -23,7 +23,7 @@ $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_5cec8187c025b
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_bbb4ab758a1f4b084c2d4751e38aa8e7'] = 'Rozwiń swój biznes za pomocą skutecznego e-mail marketingu z Ecomail. Dzięki aplikacji natychmiast zwiększysz sprzedaż i zaoszczędzisz swój cenny czas.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_ed3b4d9c73b1f24ae02109293fe5dafe'] = 'Czy naprawdę chcesz odinstalować Ecomail?';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_88dca3cc785d5f8f4569e346a842c029'] = 'Nieprawidłowy klucz API';
-$_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_fbc7fbf3359e6c1bc68c325405a97959'] = 'Synchronizacja istniejących kontaktów i zamówień przebiegła pomyślnie.';
+$_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_62a0b764cac26a2dacb488239e332e42'] = 'Synchronizacja istniejących kontaktów, zamówień i produktów została rozpoczęta.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_c298e1c165de86cbfc3e7cd202af9a9f'] = 'Nie można połączyć się z Ecomail. Sprawdź swój klucz API.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_b6e33a7f350e8b62e3e98baa85da5b48'] = 'Połączenie z Ecomail jest aktywne.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_827b41284f980e02ac41628986ec7ee4'] = 'Webhook do aktualizacji kontaktów znajduje się pod adresem';
@@ -70,6 +70,8 @@ $_MODULE['<{ecomailemailmarketing}prestashop>configure_a7e8aa3b699da5b5293699788
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_d0e72b7427e9a28c4cdbe63e7692d840'] = 'https://www.ecomail.pl';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_266ddbc0cb4ce73da9be6ff88943c359'] = 'utwórz go tutaj';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_c9cc8cce247e49bae79f15173ce97354'] = 'Zapisz';
+$_MODULE['<{ecomailemailmarketing}prestashop>configure_6f3559f5ef73ee37b418c87afec612e3'] = 'Używasz PrestaShop w konfiguracji multishop. Upewnij się, że podczas pracy z tym modułem masz wybrany konkretny sklep.';
+$_MODULE['<{ecomailemailmarketing}prestashop>configure_95fcc7da301be569ee1c251fc878b235'] = 'Aby rozpocząć, wybierz jeden konkretny sklep w swoim panelu administracyjnym.';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_2e92ae79ff32b37fee4368a594792183'] = 'Błąd połączenia';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_c79bac294efc7c2a721c2b8530442f18'] = 'Sukces! Rejestracja przebiegła pomyślnie.';
 $_MODULE['<{ecomailemailmarketing}prestashop>configure_cd58140a9aa13868d21d092e927cc7f1'] = 'Połączony klucz API';
