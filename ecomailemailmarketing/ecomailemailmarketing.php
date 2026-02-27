@@ -23,12 +23,23 @@ if (!defined('_PS_VERSION_')) {
 
 class ecomailemailmarketing extends Module
 {
+    private const WEBSERVICE_PERMISSIONS = [
+        'customers' => ['GET' => 1],
+        'orders' => ['GET' => 1],
+        'products' => ['GET' => 1],
+        'tags' => ['GET' => 1],
+        'addresses' => ['GET' => 1],
+        'countries' => ['GET' => 1],
+        'categories' => ['GET' => 1],
+        'groups' => ['GET' => 1],
+    ];
+
     public function __construct()
     {
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.1.0';
+        $this->version = '2.2.0';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -57,6 +68,7 @@ class ecomailemailmarketing extends Module
     {
         return parent::uninstall()
             && $this->getAPI()->prestaUninstalled()
+            && $this->deleteWebserviceKey(null)
             && $this->unsetValues()
             && $this->unsetTab()
             && $this->unsetDatabase();
@@ -181,9 +193,22 @@ class ecomailemailmarketing extends Module
                 )
             ) {
                 PrestaShopLogger::addLog('Sync customers and orders');
-                $this->syncCustomers(Tools::getValue('list_id'));
-                $this->syncOrders();
-                $output .= $this->displayConfirmation($this->l('Synchronisation of existing contacts and orders was successful.'));
+
+                $webserviceKey = $this->checkWebserviceKeyPermissions(Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId));
+
+                $response = $this->getAPI()->prestaInstalled([
+                    'webserviceKey' => $webserviceKey,
+                    'store' => $this->context->shop->getBaseURL(true, true),
+                    'listId' => Tools::getValue('list_id'),
+                ]);
+
+                if (isset($response->errors)) {
+                    PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($response), 1, null, 'Ecomail', null, true);
+                } else {
+                    PrestaShopLogger::addLog('Ecomail sync started: ' . json_encode($response), 1, null, 'Ecomail', null, true);
+                }
+
+                $output .= $this->displayConfirmation($this->l('Synchronisation of existing contacts, orders and products has started.'));
             }
 
             Configuration::updateValue('ECOMAIL_LIST_ID', Tools::getValue('list_id'), false, null, $currentShopId);
@@ -220,6 +245,11 @@ class ecomailemailmarketing extends Module
         $currentShopId = (int) Shop::getContextShopID();
         // Get default language
         $default_lang = (int) Configuration::get('PS_LANG_DEFAULT', null, null, $currentShopId);
+        $hasMultistoreWithoutSelectedShop = false;
+
+        if (Shop::isFeatureActive() && $currentShopId === 0) {
+            $hasMultistoreWithoutSelectedShop = true;
+        }
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $options = [];
@@ -480,6 +510,7 @@ class ecomailemailmarketing extends Module
             $this->context->smarty->assign(
                 [
                     'api_key_input' => (Configuration::get($this->name . '_api_key', null, null, $currentShopId) ? Configuration::get($this->name . '_api_key', null, null, $currentShopId) : null),
+                    'has_multistore_without_shop' => $hasMultistoreWithoutSelectedShop,
                 ]
             );
 
@@ -558,17 +589,22 @@ class ecomailemailmarketing extends Module
     // customer registration, cart registration, order without registration
     public function hookActionCustomerAccountAdd(array $params): void
     {
-        $newsletter = $params['newCustomer']->newsletter;
-        $email = $params['newCustomer']->email;
+        $newCustomer = $params['newCustomer'];
+        $newsletter = $newCustomer->newsletter;
+        $email = $newCustomer->email;
         $currentShopId = (int) Shop::getContextShopID();
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
+            if ($newCustomer->is_guest) {
+                return;
+            }
+
             $nameData = [];
             $birthdayData = [];
 
             if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
-                $firstname = $params['newCustomer']->firstname;
-                $lastname = $params['newCustomer']->lastname;
+                $firstname = $newCustomer->firstname;
+                $lastname = $newCustomer->lastname;
 
                 $nameData = [
                     'name' => $firstname,
@@ -578,14 +614,14 @@ class ecomailemailmarketing extends Module
 
             if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
                 $birthdayData = [
-                    'birthday' => $params['newCustomer']->birthday,
+                    'birthday' => $newCustomer->birthday,
                 ];
             }
 
             $groupTags = [];
-            $customer = new Customer($email);
 
             if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
+                $customer = new Customer($email);
                 $groups = $customer->getGroups();
 
                 foreach ($groups as $group) {
@@ -611,7 +647,7 @@ class ecomailemailmarketing extends Module
                         $birthdayData,
                         ['tags' => array_merge($groupTags, $newsletterTags)],
                         ['custom_fields' => [
-                            'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer->id_lang),
+                            'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $newCustomer->id_lang),
                         ]]
                     ),
                     (bool) $newsletter
@@ -695,7 +731,10 @@ class ecomailemailmarketing extends Module
                 $this->getAPI()
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
-                        ['email' => $params['email'], 'source' => 'prestashop_webhook', 'tags' => ['prestashop']],
+                        [
+                            'email' => $params['email'],
+                            'source' => 'prestashop_webhook',
+                            'tags' => isset($params['action']) && $params['action'] === '0' ? ['prestashop', 'prestashop_newsletter'] : ['prestashop']],
                         false
                     );
             }
@@ -790,7 +829,7 @@ class ecomailemailmarketing extends Module
         $currentShopId = (int) Shop::getContextShopID();
 
         if (Configuration::get('ECOMAIL_LOAD_CART', null, null, $currentShopId)) {
-            if (!isset($this->context->cart)) {
+            if (!isset($this->context->cart, $this->context->customer) || !$this->context->customer->email) {
                 return;
             }
 
@@ -809,7 +848,7 @@ class ecomailemailmarketing extends Module
                 ];
             }
 
-            if (!$this->context->customer->email || count($products) === 0) {
+            if (count($products) === 0) {
                 return;
             }
 
@@ -825,17 +864,59 @@ class ecomailemailmarketing extends Module
     {
         $currentShopId = (int) Shop::getContextShopID();
 
+        $idProduct = (int) Tools::getValue('id_product');
+        $product = new Product($idProduct, false, $currentShopId);
+
         $this->context->smarty->assign(
             [
                 'ECOMAIL_APP_ID' => Configuration::get('ECOMAIL_APP_ID', null, null, $currentShopId),
                 'ECOMAIL_FORM_ID' => Configuration::get('ECOMAIL_FORM_ID', null, null, $currentShopId),
                 'ECOMAIL_FORM_ACCOUNT' => Configuration::get('ECOMAIL_FORM_ACCOUNT', null, null, $currentShopId),
                 'EMAIL' => $this->context->cookie->email ?? '',
-                'PRODUCT_ID' => Tools::getValue('id_product'),
+                'PRODUCT_ID' => $product->reference,
             ]
         );
 
         return $this->display(__FILE__, 'ecomail_scripts.tpl');
+    }
+
+    public function checkWebserviceKeyPermissions(?string $key): string
+    {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if ($currentShopId !== 0) {
+            Shop::setContext(Shop::CONTEXT_SHOP, $currentShopId);
+        }
+
+        $key = $key ?? Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId);
+        $permissions = WebserviceKey::getPermissionForAccount($key);
+
+        if (array_keys($permissions) === array_keys(self::WEBSERVICE_PERMISSIONS)) {
+            return $key;
+        }
+
+        $this->deleteWebserviceKey($key);
+        $this->createWebserviceKey();
+
+        return Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId);
+    }
+
+    public function deleteWebserviceKey(?string $key): bool
+    {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if ($currentShopId !== 0) {
+            Shop::setContext(Shop::CONTEXT_SHOP, $currentShopId);
+        }
+
+        $keyId = WebserviceKey::getIdFromKey($key ?? Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId));
+
+        if ($keyId) {
+            $apiAccess = new WebserviceKey($keyId);
+            $apiAccess->delete();
+        }
+
+        return true;
     }
 
     public function createWebserviceKey(): bool
@@ -846,237 +927,19 @@ class ecomailemailmarketing extends Module
             Shop::setContext(Shop::CONTEXT_SHOP, $currentShopId);
         }
 
+        if (Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId)) {
+            $this->deleteWebserviceKey(Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId));
+        }
+
         $apiAccess = new WebserviceKey();
         $apiAccess->key = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 1, 32);
         $apiAccess->description = 'Ecomail webservice key' . ($currentShopId !== 0 ? ' for shopId ' . $currentShopId : '');
         $apiAccess->save();
 
-        $permissions = [
-            'customers' => ['GET' => 1],
-            'orders' => ['GET' => 1],
-            'products' => ['GET' => 1],
-            'tags' => ['GET' => 1],
-        ];
-
-        WebserviceKey::setPermissionForAccount($apiAccess->id, $permissions);
+        WebserviceKey::setPermissionForAccount($apiAccess->id, self::WEBSERVICE_PERMISSIONS);
         Configuration::updateValue('ECOMAIL_WEBSERVICE_KEY', $apiAccess->key, false, null, $currentShopId);
 
         return true;
-    }
-
-    public function syncCustomers(string $listId, int $offset = 0): void
-    {
-        $currentShopId = (int) Shop::getContextShopID();
-
-        $webServiceUrl = $this->context->shop->getBaseURL(true, true) . 'api/';
-
-        $allCustomers = $this->requestGet($webServiceUrl, 'customers', $offset, 1000);
-
-        $customersToImport = [];
-
-        if (!$allCustomers || !isset($allCustomers['customers'])) {
-            PrestaShopLogger::addLog('No customers to sync');
-
-            return;
-        }
-
-        PrestaShopLogger::addLog(sprintf('Customers count: %s', count($allCustomers['customers'])));
-
-        foreach ($allCustomers['customers'] as $customer) {
-            if (!$this->getAPI()->isEmailValid($customer['email'])) {
-                PrestaShopLogger::addLog(sprintf('Invalid email: %s', $customer['email'] ?? 'No email address'));
-
-                continue;
-            }
-
-            $groupTags = [];
-
-            if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
-                if (isset($customer['associations']['groups'])) {
-                    foreach ($customer['associations']['groups'] as $group) {
-                        $group = new Group((int) $group['id']);
-                        $group = (array) $group->name;
-                        $groupTags[] = $group[array_keys($group)[0]];
-                    }
-                }
-            }
-
-            $newsletterTags = $customer['newsletter'] === '1' ? ['prestashop_newsletter', 'prestashop'] : ['prestashop'];
-
-            $customerData = [
-                'email' => $customer['email'],
-                'tags' => array_merge($groupTags, $newsletterTags),
-                'custom_fields' => [
-                    'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer['id_lang']),
-                ],
-                'source' => 'prestashop_import',
-            ];
-
-            if (Configuration::get('ECOMAIL_LOAD_NAME', null, null, $currentShopId)) {
-                $customerData['name'] = $customer['firstname'];
-                $customerData['surname'] = $customer['lastname'];
-            }
-
-            if (Configuration::get('ECOMAIL_LOAD_BIRTHDAY', null, null, $currentShopId)) {
-                $customerData['birthday'] = $customer['birthday'];
-            }
-
-            if (Configuration::get('ECOMAIL_LOAD_ADDRESS', null, null, $currentShopId)) {
-                $customerForAddress = new Customer($customer['id']);
-                $customerAddress = $customerForAddress->getAddresses($customerForAddress->id_lang);
-
-                if (isset($customerAddress[0])) {
-                    $country = new Country($customerAddress[0]['id_country']);
-
-                    $customerData['city'] = $customerAddress[0]['city'];
-                    $customerData['street'] = $customerAddress[0]['address1'];
-                    $customerData['zip'] = $customerAddress[0]['postcode'];
-                    $customerData['country'] = $country->iso_code;
-                    $customerData['company'] = $customerAddress[0]['company'];
-                    $customerData['phone'] = $customerAddress[0]['phone'];
-                }
-            }
-
-            $customersToImport[] = $customerData;
-        }
-
-        if ($offset === 0 && count($customersToImport) > 0) {
-            $firstCustomer = array_shift($customersToImport);
-            $hasNewsletter = in_array('prestashop_newsletter', $firstCustomer['tags'], true);
-
-            $result = $this->getAPI()->subscribeToList($listId, $firstCustomer, $hasNewsletter);
-
-            if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'subscribeToList', null, true);
-            }
-        }
-
-        PrestaShopLogger::addLog('Customers processed - ready to import');
-
-        if (count($customersToImport) > 0) {
-            $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
-
-            if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Data contains invalid emails - retry: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
-
-                foreach (array_keys((array) $result->errors) as $error) {
-                    $key = explode('.', $error);
-
-                    if (isset($key[1])) {
-                        unset($customersToImport[$key[1]]);
-                    }
-                }
-
-                $result = $this->getAPI()->bulkSubscribeToList($listId, $customersToImport);
-
-                if (isset($result->errors)) {
-                    PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkSubscribeToList', null, true);
-                }
-            }
-        }
-
-        if (count($allCustomers['customers']) === 1000) {
-            $this->syncCustomers($listId, $offset + 1000);
-        } else {
-            PrestaShopLogger::addLog('Customers imported');
-        }
-    }
-
-    public function requestGet(string $url, string $event, int $offset, int $limit): ?array
-    {
-        $currentShopId = (int) Shop::getContextShopID();
-
-        $ch = curl_init();
-        $display = '?display=full&output_format=JSON';
-        $limit = sprintf('&limit=%d,%d', $offset, $limit);
-
-        $url = $url . $event . $display . $limit;
-
-        $headers = [
-            'Authorization: Basic ' . base64_encode(Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId) . ':'),
-        ];
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        $response = curl_exec($ch);
-
-        curl_close($ch);
-
-        return json_decode($response, true, JSON_UNESCAPED_SLASHES);
-    }
-
-    public function syncOrders(int $offset = 0): void
-    {
-        $webServiceUrl = $this->context->shop->getBaseURL(true, true) . 'api/';
-
-        $allOrders = $this->requestGet($webServiceUrl, 'orders', $offset, 500);
-
-        $ordersToImport = [];
-
-        if (!$allOrders || !isset($allOrders['orders'])) {
-            PrestaShopLogger::addLog('No orders to sync - url: ' . $webServiceUrl);
-
-            return;
-        }
-
-        PrestaShopLogger::addLog(sprintf('Orders count: %s', count($allOrders['orders'])));
-
-        foreach ($allOrders['orders'] as $order) {
-            if (!isset($order['associations']['order_rows'])) {
-                PrestaShopLogger::addLog(sprintf('Order %s skipped: missing order_rows', $order['id'] ?? 'Unknown ID'));
-
-                continue;
-            }
-
-            $transaction = $this->getAPI()->buildTransaction($order);
-
-            if (!$transaction) {
-                PrestaShopLogger::addLog(sprintf('Order %s skipped: buildTransaction returned null', $order['id'] ?? 'Unknown ID'));
-
-                continue;
-            }
-
-            $transactionItems = [];
-
-            foreach ($order['associations']['order_rows'] as $item) {
-                $transactionItems[] = $this->getAPI()->buildTransactionItems($item, strtotime($order['date_add']));
-            }
-
-            $ordersToImport[] = [
-                'transaction' => $transaction,
-                'transaction_items' => $transactionItems,
-            ];
-        }
-
-        PrestaShopLogger::addLog('Orders processed - ready to import');
-
-        if (count($ordersToImport) > 0) {
-            $result = $this->getAPI()->bulkOrders($ordersToImport);
-
-            if (isset($result->errors)) {
-                PrestaShopLogger::addLog('Orders contains invalid data - retry: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
-
-                foreach (array_keys((array) $result->errors) as $error) {
-                    $key = explode('.', $error);
-
-                    if (isset($key[1])) {
-                        unset($ordersToImport[$key[1]]);
-                    }
-                }
-
-                $result = $this->getAPI()->bulkOrders($ordersToImport);
-
-                if (isset($result->errors)) {
-                    PrestaShopLogger::addLog('Ecomail failed: ' . json_encode($result->errors), 1, null, 'bulkOrders', null, true);
-                }
-            }
-        }
-
-        if (count($allOrders['orders']) === 500) {
-            $this->syncOrders($offset + 500);
-        } else {
-            PrestaShopLogger::addLog('Orders imported');
-        }
     }
 
     public function hookActionObjectCustomerUpdateAfter(array $params): void

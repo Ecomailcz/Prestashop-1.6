@@ -43,7 +43,7 @@
   window.ecotrack('trackPageView');
 
   {if !empty($PRODUCT_ID|escape:'javascript':'UTF-8')}
-    window.ecotrack('trackStructEvent', 'ECM_PRODUCT_VIEW', {$PRODUCT_ID|escape:'javascript':'UTF-8'});
+    window.ecotrack('trackStructEvent', 'ECM_PRODUCT_VIEW', '{$PRODUCT_ID|escape:'javascript':'UTF-8'}');
   {/if}
 
 </script>

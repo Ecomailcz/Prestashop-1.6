@@ -269,9 +269,9 @@ class EcomailAPI
         return !(isset($response['message']) && $response['message'] === 'Wrong api key');
     }
 
-    public function prestaInstalled(): void
+    public function prestaInstalled(array $params = [])
     {
-        $this->call('webhooks/prestashop-install', 'POST', ['key' => $this->APIKey], true);
+        return $this->call('webhooks/prestashop-install', 'POST', array_merge(['key' => $this->APIKey], $params), true);
     }
 
     public function prestaUninstalled(): bool
