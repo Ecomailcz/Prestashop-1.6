@@ -225,7 +225,7 @@ class EcomailAPI
             [
                 'order_id' => 'presta_' . $order['id'],
                 'email' => $customer->email,
-                'shop' => 'prestashop',
+                'shop' => (string) Context::getContext()->shop->getBaseURL(),
                 'amount' => round($order['total_paid_tax_incl'], 2),
                 'tax' => round($order['total_paid_tax_incl'] - $order['total_paid_tax_excl'], 2),
                 'shipping' => round($order['total_shipping'], 2),
