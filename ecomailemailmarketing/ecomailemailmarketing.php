@@ -23,6 +23,19 @@ if (!defined('_PS_VERSION_')) {
 
 class ecomailemailmarketing extends Module
 {
+    public $multistoreCompatibility = self::MULTISTORE_COMPATIBILITY_PARTIAL;
+
+    private static $latestGroupIds = [];
+
+    public $tabs = [
+        [
+            'name' => 'Ecomail AJAX',
+            'class_name' => 'AdminEcomailAjax',
+            'visible' => false,
+            'parent_class_name' => 'AdminModules',
+        ],
+    ];
+
     private const WEBSERVICE_PERMISSIONS = [
         'customers' => ['GET' => 1],
         'orders' => ['GET' => 1],
@@ -32,6 +45,7 @@ class ecomailemailmarketing extends Module
         'countries' => ['GET' => 1],
         'categories' => ['GET' => 1],
         'groups' => ['GET' => 1],
+        'ecomail_subscribers' => ['GET' => 1],
     ];
 
     public function __construct()
@@ -39,7 +53,7 @@ class ecomailemailmarketing extends Module
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.2.1';
+        $this->version = '2.2.2';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -117,11 +131,30 @@ class ecomailemailmarketing extends Module
     // Admin tabs
     public function setTab(): bool
     {
-        return true;
+        if (Tab::getIdFromClassName('AdminEcomailAjax')) {
+            return true;
+        }
+
+        $tab = new Tab();
+        $tab->class_name = 'AdminEcomailAjax';
+        $tab->module = $this->name;
+        $tab->active = false;
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminModules');
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = 'Ecomail AJAX';
+        }
+
+        return (bool) $tab->save();
     }
 
     public function unsetTab(): bool
     {
+        $id = Tab::getIdFromClassName('AdminEcomailAjax');
+        if ($id) {
+            $tab = new Tab($id);
+            $tab->delete();
+        }
+
         return true;
     }
 
@@ -146,8 +179,9 @@ class ecomailemailmarketing extends Module
             && $this->registerHook('actionNewsletterRegistrationAfter')
             && $this->registerHook('actionCartSave')
             && $this->registerHook('actionSubmitCustomerAddressForm')
-            && $this->registerHook('displayBackOfficeHeader')
+            && $this->registerHook('actionAdminControllerSetMedia')
             && $this->registerHook('actionObjectCustomerUpdateAfter')
+            && $this->registerHook('actionCustomerBeforeUpdateGroup')
             && $this->registerHook('addWebserviceResources');
     }
 
@@ -230,7 +264,12 @@ class ecomailemailmarketing extends Module
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) && $this->getAPI()->getListsCollection()) {
             $this->getAPI()->prestaInstalled();
-            $output .= $this->displayConfirmation($this->l('Connection to Ecomail is active.'));
+
+            if (!Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId)) {
+                $output .= $this->displayWarning($this->l('Don\'t forget to save the configuration below.'));
+            } else {
+                $output .= $this->displayConfirmation($this->l('Connection to Ecomail is active.'));
+            }
 
             $shopUrl = $this->context->shop->getBaseURL(true, true);
 
@@ -514,7 +553,7 @@ class ecomailemailmarketing extends Module
                 ]
             );
 
-            $ajax_link = $this->context->link->getModuleLink('ecomailemailmarketing', 'ajax', [], true);
+            $ajax_link = $this->context->link->getAdminLink('AdminEcomailAjax');
 
             Media::addJsDef(
                 [
@@ -582,6 +621,7 @@ class ecomailemailmarketing extends Module
 
         $obj = new EcomailAPI();
         $obj->setAPIKey(Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId));
+        $obj->setShopHost(parse_url((string) $this->context->shop->getBaseURL(true, true), PHP_URL_HOST));
 
         return $obj;
     }
@@ -909,7 +949,14 @@ class ecomailemailmarketing extends Module
             Shop::setContext(Shop::CONTEXT_SHOP, $currentShopId);
         }
 
-        $keyId = WebserviceKey::getIdFromKey($key ?? Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId));
+        $keyValue = $key ?? Configuration::get('ECOMAIL_WEBSERVICE_KEY', null, null, $currentShopId);
+        if (version_compare(_PS_VERSION_, '8.0.0', '>=')) {
+            $keyId = $keyValue ? WebserviceKey::getIdFromKey($keyValue) : 0;
+        } else {
+            $keyId = $keyValue ? (int) Db::getInstance()->getValue(
+                'SELECT `id_webservice_account` FROM `' . _DB_PREFIX_ . 'webservice_account` WHERE `key` = "' . pSQL($keyValue) . '"'
+            ) : 0;
+        }
 
         if ($keyId) {
             $apiAccess = new WebserviceKey($keyId);
@@ -975,7 +1022,7 @@ class ecomailemailmarketing extends Module
 
             $groupTags = [];
             if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
-                $groups = $customer->getGroups();
+                $groups = self::$latestGroupIds[(int) $customer->id] ?? $customer->getGroups();
 
                 foreach ($groups as $group) {
                     $group = new Group((int) $group);
@@ -1026,6 +1073,17 @@ class ecomailemailmarketing extends Module
         }
     }
 
+    public function hookActionCustomerBeforeUpdateGroup(array $params): void
+    {
+        $customerId = (int) ($params['id_customer'] ?? 0);
+        if ($customerId === 0) {
+            return;
+        }
+
+        $groupIds = array_map('intval', (array) ($params['groups'] ?? []));
+        self::$latestGroupIds[$customerId] = $groupIds;
+    }
+
     public function hookActionSubmitCustomerAddressForm(array $params): void
     {
         $currentShopId = (int) Shop::getContextShopID();
@@ -1055,21 +1113,25 @@ class ecomailemailmarketing extends Module
         }
     }
 
-    public function hookAddWebserviceResources(array $params): bool
+    public function hookAddWebserviceResources(array $params): array
     {
-        return true;
+        require_once __DIR__ . '/lib/WebserviceSpecificManagementEcomailSubscribers.php';
+
+        return [
+            'ecomail_subscribers' => [
+                'description' => 'Newsletter subscribers (ps_emailsubscription)',
+                'specific_management' => true,
+            ],
+        ];
     }
 
-    public function hookDisplayBackOfficeHeader()
+    public function hookActionAdminControllerSetMedia()
     {
-        if (Tools::getValue('configure') == $this->name) {
-            if (method_exists($this->context->controller, 'addJquery')) {
-                $this->context->controller->addJquery();
-            }
-            if (method_exists($this->context->controller, 'addJS')) {
-                $this->context->controller->addJS($this->_path . 'views/js/save.js');
-            }
+        if (Tools::getValue('configure') != $this->name) {
+            return;
         }
+
+        $this->context->controller->addJS($this->_path . 'views/js/save.js');
     }
 
     public function clearCache(): bool

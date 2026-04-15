@@ -63,4 +63,13 @@ if ($requestJson) {
             PrestaShopLogger::addLog('Ecomail Webhook: Invalid customer object for ID: ' . $customer['id_customer'], 3, null, 'Ecomail', null, true);
         }
     }
+
+    if (Module::isEnabled('ps_emailsubscription')) {
+        $active = $newsletterStatus === '1' ? 1 : 0;
+        Db::getInstance()->update(
+            'emailsubscription',
+            ['active' => $active],
+            'email = \'' . pSQL($email) . '\''
+        );
+    }
 }

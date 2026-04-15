@@ -25,6 +25,7 @@ $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_ed3b4d9c73b1f
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_88dca3cc785d5f8f4569e346a842c029'] = 'Neplatný API klíč';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_62a0b764cac26a2dacb488239e332e42'] = 'Synchronizace stávajících kontaktů, objednávek a produktů byla zahájena.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_c298e1c165de86cbfc3e7cd202af9a9f'] = 'Nepodařilo se spojit se službou Ecomail. Zkontrolujte prosím svůj API klíč.';
+$_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_6860c8ea93075bf1d014267fc55027be'] = 'Nezapomeňte uložit níže uvedenou konfiguraci!';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_b6e33a7f350e8b62e3e98baa85da5b48'] = 'Spojení se službou Ecomail je aktivní.';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_827b41284f980e02ac41628986ec7ee4'] = 'Webhook pro zpětnou aktualizaci kontaktů je na adrese';
 $_MODULE['<{ecomailemailmarketing}prestashop>ecomailemailmarketing_0ad809c31dc0464f821f4691b6709fdd'] = 'Konfigurace Ecomail';

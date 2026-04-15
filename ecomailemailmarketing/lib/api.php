@@ -24,9 +24,18 @@ class EcomailAPI
 {
     protected $APIKey;
 
+    protected $shopHost;
+
     public function setAPIKey($arg): self
     {
         $this->APIKey = $arg;
+
+        return $this;
+    }
+
+    public function setShopHost(string $host): self
+    {
+        $this->shopHost = $host;
 
         return $this;
     }
@@ -225,7 +234,7 @@ class EcomailAPI
             [
                 'order_id' => 'presta_' . $order['id'],
                 'email' => $customer->email,
-                'shop' => (string) Context::getContext()->shop->getBaseURL(),
+                'shop' => $this->shopHost,
                 'amount' => round($order['total_paid_tax_incl'], 2),
                 'tax' => round($order['total_paid_tax_incl'] - $order['total_paid_tax_excl'], 2),
                 'shipping' => round($order['total_shipping'], 2),
