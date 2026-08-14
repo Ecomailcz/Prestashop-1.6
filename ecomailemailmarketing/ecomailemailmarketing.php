@@ -48,12 +48,16 @@ class ecomailemailmarketing extends Module
         'ecomail_subscribers' => ['GET' => 1],
     ];
 
+    private const ECOMAIL_STATUS_SUBSCRIBED = 1;
+
+    private const ECOMAIL_STATUS_UNCONFIRMED = 6;
+
     public function __construct()
     {
         $this->module_key = '3c90ebaffe6722aece11c7a66bc18bec';
         $this->name = 'ecomailemailmarketing';
         $this->tab = 'emailing';
-        $this->version = '2.2.2';
+        $this->version = '2.2.3';
         $this->author = 'Ecomail';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
@@ -176,6 +180,7 @@ class ecomailemailmarketing extends Module
             $this->registerHook('actionCustomerAccountAdd')
             && $this->registerHook('actionValidateOrder')
             && $this->registerHook('displayAfterBodyOpeningTag')
+            && $this->registerHook('actionNewsletterRegistrationBefore')
             && $this->registerHook('actionNewsletterRegistrationAfter')
             && $this->registerHook('actionCartSave')
             && $this->registerHook('actionSubmitCustomerAddressForm')
@@ -661,8 +666,7 @@ class ecomailemailmarketing extends Module
             $groupTags = [];
 
             if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
-                $customer = new Customer($email);
-                $groups = $customer->getGroups();
+                $groups = $newCustomer->getGroups();
 
                 foreach ($groups as $group) {
                     $group = new Group((int) $group);
@@ -695,11 +699,41 @@ class ecomailemailmarketing extends Module
         }
     }
 
+    // with double opt-in Prestashop fires actionNewsletterRegistrationAfter only once the subscription is confirmed
+    public function hookActionNewsletterRegistrationBefore(array $params): void
+    {
+        $currentShopId = (int) Shop::getContextShopID();
+
+        if (!Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId) || !Configuration::get('NW_VERIFICATION_EMAIL')) {
+            return;
+        }
+
+        if (!isset($params['email'], $params['action']) || (int) $params['action'] !== 0 || !Validate::isEmail($params['email'])) {
+            return;
+        }
+
+        $this->getAPI()
+            ->subscribeToList(
+                Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
+                [
+                    'email' => $params['email'],
+                    'source' => 'prestashop_webhook',
+                    'tags' => ['prestashop'],
+                    'status' => self::ECOMAIL_STATUS_UNCONFIRMED,
+                ],
+                false,
+                false
+            );
+    }
+
     public function hookActionNewsletterRegistrationAfter(array $params): void
     {
         $currentShopId = (int) Shop::getContextShopID();
 
         if (Configuration::get('ECOMAIL_API_KEY', null, null, $currentShopId)) {
+            $isSubscription = isset($params['action']) && (int) $params['action'] === 0;
+            $isConfirmedDoubleOptIn = $isSubscription && (bool) Configuration::get('NW_VERIFICATION_EMAIL');
+
             $customer = Customer::getCustomersByEmail($params['email']);
 
             if ($customer) {
@@ -736,7 +770,8 @@ class ecomailemailmarketing extends Module
 
                 $groupTags = [];
                 if (Configuration::get('ECOMAIL_LOAD_GROUP', null, null, $currentShopId)) {
-                    $groups = $customer->getGroups();
+                    $customerObject = new Customer((int) $customer['id_customer']);
+                    $groups = $customerObject->getGroups();
 
                     foreach ($groups as $group) {
                         $group = new Group((int) $group);
@@ -750,7 +785,9 @@ class ecomailemailmarketing extends Module
                     }
                 }
 
-                $newsletterTags = $customer->newsletter ? ['prestashop', 'prestashop_newsletter'] : ['prestashop'];
+                $isNewsletterSubscriber = (bool) $customer['newsletter'];
+                $newsletterTags = $isNewsletterSubscriber ? ['prestashop', 'prestashop_newsletter'] : ['prestashop'];
+                $statusData = $isConfirmedDoubleOptIn && $isNewsletterSubscriber ? ['status' => self::ECOMAIL_STATUS_SUBSCRIBED] : [];
 
                 $this->getAPI()
                     ->subscribeToList(
@@ -761,21 +798,28 @@ class ecomailemailmarketing extends Module
                             $birthdayData,
                             $addressData,
                             ['tags' => array_merge($groupTags, $newsletterTags)],
+                            $statusData,
                             ['custom_fields' => [
                                 'PRESTA_LANGUAGE' => (string) Language::getIsoById((int) $customer['id_lang']),
                             ]]
                         ),
-                        (bool) $customer->newsletter
+                        $isNewsletterSubscriber
                     );
             } else {
+                $statusData = $isConfirmedDoubleOptIn ? ['status' => self::ECOMAIL_STATUS_SUBSCRIBED] : [];
+
                 $this->getAPI()
                     ->subscribeToList(
                         Configuration::get('ECOMAIL_LIST_ID', null, null, $currentShopId),
-                        [
-                            'email' => $params['email'],
-                            'source' => 'prestashop_webhook',
-                            'tags' => isset($params['action']) && $params['action'] === '0' ? ['prestashop', 'prestashop_newsletter'] : ['prestashop']],
-                        false
+                        array_merge(
+                            [
+                                'email' => $params['email'],
+                                'source' => 'prestashop_webhook',
+                                'tags' => $isSubscription ? ['prestashop', 'prestashop_newsletter'] : ['prestashop'],
+                            ],
+                            $statusData
+                        ),
+                        $isConfirmedDoubleOptIn
                     );
             }
         }
