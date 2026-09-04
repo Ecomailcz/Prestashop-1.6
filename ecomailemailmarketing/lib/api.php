@@ -45,7 +45,7 @@ class EcomailAPI
         return $this->call('lists', 'GET', null, false);
     }
 
-    public function subscribeToList(string $listId, array $customerData, bool $resubscribe)
+    public function subscribeToList(string $listId, array $customerData, bool $resubscribe, bool $updateExisting = true)
     {
         $currentShopId = (int) Shop::getContextShopID();
 
@@ -58,7 +58,7 @@ class EcomailAPI
             [
                 'subscriber_data' => $customerData,
                 'resubscribe' => $resubscribe,
-                'update_existing' => true,
+                'update_existing' => $updateExisting,
                 'skip_confirmation' => (bool) Configuration::get('ECOMAIL_SKIP_CONFIRM', null, null, $currentShopId),
                 'trigger_autoresponders' => (bool) Configuration::get('ECOMAIL_TRIGGER_AUTORESPONDERS', null, null, $currentShopId),
             ],
